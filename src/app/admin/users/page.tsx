@@ -119,7 +119,7 @@ export default function UserManagementPage() {
         </div>
       </div>
 
-      <div className="rounded-md border border-white/10 bg-card">
+      <div className="rounded-md border border-white/10 bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

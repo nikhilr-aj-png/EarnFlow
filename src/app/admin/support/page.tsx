@@ -106,7 +106,7 @@ export default function AdminSupportPage() {
         </Badge>
       </div>
 
-      <div className="rounded-xl border border-white/5 bg-card/50 overflow-hidden">
+      <div className="rounded-xl border border-white/5 bg-card/50 overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-white/5 bg-white/5">

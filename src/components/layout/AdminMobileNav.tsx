@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LogOut, LayoutDashboard, ListTodo, Gamepad2, ArrowUpRight, Users, CreditCard } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard, ListTodo, Gamepad2, ArrowUpRight, Users, CreditCard, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -16,6 +16,7 @@ const adminSidebarItems = [
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: ArrowUpRight },
   { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Support", href: "/admin/support", icon: MessageSquare },
 ];
 
 export function AdminMobileNav() {

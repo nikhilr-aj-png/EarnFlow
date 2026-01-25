@@ -167,7 +167,7 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 bg-card/50 border-white/5">
+        <Card className="col-span-1 md:col-span-2 lg:col-span-4 bg-card/50 border-white/5">
           <CardHeader>
             <CardTitle>Recent Activity</CardTitle>
           </CardHeader>
@@ -194,7 +194,7 @@ export default function DashboardPage() {
             )}
           </CardContent>
         </Card>
-        <div className="col-span-3 space-y-4">
+        <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-4">
           <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
             <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
             Live Games ({activeGames.length})

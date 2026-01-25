@@ -75,7 +75,7 @@ export default function AdminPaymentsPage() {
         </div>
 
         {activeTab === 'razorpay' ? (
-          <div className="bg-card border border-white/10 rounded-xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-card border border-white/10 rounded-xl overflow-x-auto animate-in fade-in slide-in-from-bottom-2 duration-300">
             <Table>
               <TableHeader className="bg-white/5">
                 <TableRow>
@@ -117,7 +117,7 @@ export default function AdminPaymentsPage() {
             </Table>
           </div>
         ) : (
-          <div className="bg-card border border-white/10 rounded-xl overflow-hidden opacity-80 animate-in fade-in slide-in-from-bottom-2 duration-300">
+          <div className="bg-card border border-white/10 rounded-xl overflow-x-auto opacity-80 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <Table>
               <TableHeader className="bg-white/5">
                 <TableRow>

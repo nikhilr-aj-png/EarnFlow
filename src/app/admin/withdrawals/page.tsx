@@ -80,7 +80,7 @@ export default function WithdrawalsPage() {
         <h1 className="text-3xl font-bold tracking-tight">Withdrawal Requests</h1>
       </div>
 
-      <div className="rounded-md border border-white/10 bg-card">
+      <div className="rounded-md border border-white/10 bg-card overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>

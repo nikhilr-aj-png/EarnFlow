@@ -162,7 +162,7 @@ export default function AdminGamesPage() {
         </Button>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-card/50 backdrop-blur-sm overflow-hidden">
+      <div className="rounded-xl border border-white/10 bg-card/50 backdrop-blur-sm overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow className="border-white/10 hover:bg-transparent">
