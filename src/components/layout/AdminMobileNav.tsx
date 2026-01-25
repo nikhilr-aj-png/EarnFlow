@@ -14,9 +14,9 @@ const adminSidebarItems = [
   { name: "Global Games", href: "/admin/games", icon: Gamepad2 },
   { name: "Manage Tasks", href: "/admin/tasks", icon: ListTodo },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
+  { name: "Support", href: "/admin/support", icon: MessageSquare },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: ArrowUpRight },
   { name: "Users", href: "/admin/users", icon: Users },
-  { name: "Support", href: "/admin/support", icon: MessageSquare },
 ];
 
 export function AdminMobileNav() {
@@ -58,7 +58,7 @@ export function AdminMobileNav() {
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 right-0 w-[280px] bg-background border-l border-white/10 z-50 p-6 flex flex-col shadow-2xl"
+              className="fixed inset-y-0 right-0 w-[280px] bg-background border-l border-white/10 z-50 p-6 flex flex-col shadow-2xl overflow-y-auto"
             >
               <div className="flex items-center justify-between mb-8">
                 <span className="font-bold text-lg text-red-500">Admin Menu</span>
