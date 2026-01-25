@@ -72,6 +72,8 @@ export default function LoginPage() {
             )}
             <div className="space-y-2">
               <Input
+                id="email"
+                name="email"
                 type="email"
                 placeholder="Email like yourname@example.com"
                 value={email}
@@ -82,6 +84,8 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <Input
+                id="password"
+                name="password"
                 type="password"
                 placeholder="Password"
                 value={password}
@@ -90,6 +94,7 @@ export default function LoginPage() {
                 className="bg-secondary/50 border-white/10 h-11"
               />
             </div>
+
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white border-0 h-11"

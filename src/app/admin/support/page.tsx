@@ -76,15 +76,24 @@ export default function AdminSupportPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this message?")) return;
+    if (!confirm("Are you sure you want to delete this message permanently?")) return;
+
+    // 1. Optimistic Update (Remove from UI immediately)
+    const previousMessages = [...messages];
+    setMessages(messages.filter(m => m.id !== id));
+
     try {
+      console.log(`Deleting message ${id} from Firebase...`);
       await deleteDoc(doc(db, "contactMessages", id));
-      toast.success("Message deleted");
-      fetchMessages();
-    } catch (error) {
-      toast.error("Failed to delete message.");
+      toast.success("Message deleted from Database");
+    } catch (error: any) {
+      console.error("Delete Error:", error);
+      // Revert if failed
+      setMessages(previousMessages);
+      toast.error("Failed to delete. Check console for permissions error.");
     }
   };
+
 
   if (loading) {
     return (

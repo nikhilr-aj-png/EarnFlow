@@ -96,6 +96,8 @@ function RegisterForm() {
             )}
             <div className="space-y-2">
               <Input
+                id="name"
+                name="name"
                 type="text"
                 placeholder="Full Name"
                 value={name}
@@ -106,6 +108,8 @@ function RegisterForm() {
             </div>
             <div className="space-y-2">
               <Input
+                id="email"
+                name="email"
                 type="email"
                 placeholder="Email Address"
                 value={email}
@@ -116,6 +120,8 @@ function RegisterForm() {
             </div>
             <div className="space-y-2">
               <Input
+                id="password"
+                name="password"
                 type="password"
                 placeholder="Password (min 6 chars)"
                 value={password}
@@ -125,6 +131,7 @@ function RegisterForm() {
                 className="bg-secondary/50 border-white/10 h-11"
               />
             </div>
+
             <Button
               type="submit"
               className="w-full bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white border-0 h-11"
