@@ -56,10 +56,28 @@ export async function POST(req: Request) {
     };
 
     // 3. Send Email
-    // Note: If env vars are missing, we log it and return success for testing flow
+    // Check if user has updated the credentials
+    if (process.env.EMAIL_USER === "your-email@gmail.com") {
+      console.warn("CRITICAL: EMAIL_USER is still using the placeholder value. OTP will not be sent.");
+      return NextResponse.json({
+        success: false,
+        error: "Server configuration incomplete. Please contact administrator.",
+        details: "Placeholder email credentials detected."
+      }, { status: 500 });
+    }
+
     if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      await transporter.sendMail(mailOptions);
-      console.log(`OTP ${otp} sent to ${email}`);
+      try {
+        await transporter.sendMail(mailOptions);
+        console.log(`OTP ${otp} successfully sent to ${email}`);
+      } catch (smtpError: any) {
+        console.error("SMTP Error - Failed to send email:", smtpError.message);
+        return NextResponse.json({
+          success: false,
+          error: "Failed to deliver OTP email. Please try again later.",
+          details: smtpError.message
+        }, { status: 500 });
+      }
     } else {
       console.log("-----------------------------------------");
       console.log(`MOCK EMAIL SENT TO: ${email}`);
@@ -70,7 +88,8 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, message: "OTP sent successfully" });
   } catch (error: any) {
-    console.error("Error sending OTP:", error);
-    return NextResponse.json({ error: "Failed to send OTP. Please try again later." }, { status: 500 });
+    console.error("Internal API Error:", error);
+    return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
   }
 }
+

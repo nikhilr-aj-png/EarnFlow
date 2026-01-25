@@ -46,13 +46,22 @@ function RegisterForm() {
       });
 
       // 4. Send OTP
-      await fetch("/api/auth/send-otp", {
+      const otpRes = await fetch("/api/auth/send-otp", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, name }),
       });
 
+      const otpData = await otpRes.json();
+
+      if (!otpRes.ok) {
+        setError(otpData.error || "Failed to send verification email. Please contact support.");
+        setLoading(false);
+        return;
+      }
+
       router.push(`/verify-email?email=${encodeURIComponent(email)}`);
+
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {

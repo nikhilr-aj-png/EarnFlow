@@ -98,13 +98,18 @@ function VerifyEmailForm() {
         body: JSON.stringify({ email, name: user?.displayName || "User" }),
       });
 
+      const data = await res.json();
+
       if (res.ok) {
         toast.success("New OTP sent to your email.");
         setOtp("");
         setError("");
       } else {
-        toast.error("Failed to resend OTP.");
+        const errorMsg = data.error || "Failed to resend OTP.";
+        toast.error(errorMsg);
+        setError(errorMsg);
       }
+
     } catch (err) {
       toast.error("Something went wrong.");
     } finally {
