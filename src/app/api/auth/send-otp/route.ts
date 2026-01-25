@@ -37,33 +37,16 @@ export async function POST(req: Request) {
     }
 
     // 2. Configure NodeMailer
-    console.log("Checking Environment Variables...");
-    console.log("EMAIL_USER:", process.env.EMAIL_USER ? "Loaded (Ending in " + process.env.EMAIL_USER.split('@')[1] + ")" : "NOT LOADED");
-
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
-      logger: true,
-      debug: true,
     });
 
-    try {
-      console.log("Verifying transporter connection...");
-      await transporter.verify();
-      console.log("Transporter verification successful.");
-    } catch (verifyError: any) {
-      console.error("Transporter Verification Failed:", verifyError.message);
-      return NextResponse.json({
-        success: false,
-        error: "SMTP Connection failed. Check App Password.",
-        details: verifyError.message
-      }, { status: 500 });
-    }
-
     console.log(`Attempting to send OTP to ${email}...`);
+
     // ... rest of the code
 
 
