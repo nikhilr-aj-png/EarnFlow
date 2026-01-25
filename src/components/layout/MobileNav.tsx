@@ -10,8 +10,8 @@ import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const sidebarItems = [
-  { name: "Landing Home", href: "/", icon: Home },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+
   { name: "Cards Game", href: "/dashboard/cards", icon: Gamepad2 },
   { name: "Earn Tasks", href: "/tasks", icon: CheckSquare },
   { name: "Wallet", href: "/wallet", icon: Wallet },
