@@ -56,13 +56,14 @@ export default function TasksManagementPage() {
     setIsPremium(false);
     setExpiryHours("24");
     setTargetUrl("");
-    setQuestions(Array(5).fill({
+    setQuestions(Array(2).fill({
       text: "",
       options: ["", "", "", ""],
       correctAnswer: 0
     }));
     setEditingTask(null);
   };
+
 
   const openEditModal = (task: any) => {
     setEditingTask(task);
@@ -73,11 +74,13 @@ export default function TasksManagementPage() {
     setType(task.type);
     setIsPremium(task.isPremium);
     setTargetUrl(task.targetUrl || "");
-    setQuestions(task.questions || Array(5).fill({
+    const defaultCount = task.isPremium ? 5 : 2;
+    setQuestions(task.questions || Array(defaultCount).fill({
       text: "",
       options: ["", "", "", ""],
       correctAnswer: 0
     }));
+
 
     setExpiryHours("24");
     setIsOpen(true);
@@ -236,6 +239,30 @@ export default function TasksManagementPage() {
               </select>
             </div>
             <div className="space-y-2">
+              <label className="text-sm font-medium">Task Tier</label>
+              <select
+                className="flex h-10 w-full rounded-md border border-white/10 bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                value={isPremium ? "premium" : "free"}
+                onChange={(e) => {
+                  const isPrem = e.target.value === "premium";
+                  setIsPremium(isPrem);
+
+                  // Reset questions based on tier
+                  const count = isPrem ? 5 : 2;
+                  // Preserve existing questions if possible, otherwise fill
+                  const newQs = [...questions].slice(0, count);
+                  while (newQs.length < count) {
+                    newQs.push({ text: "", options: ["", "", "", ""], correctAnswer: 0 });
+                  }
+                  setQuestions(newQs);
+                }}
+              >
+                <option value="free">Free User Task</option>
+                <option value="premium">Premium User Task</option>
+              </select>
+            </div>
+
+            <div className="space-y-2">
               <label className="text-sm font-medium">Expiry Hours (from now)</label>
               <Input type="number" value={expiryHours} onChange={e => setExpiryHours(e.target.value)} required />
             </div>
@@ -263,8 +290,11 @@ export default function TasksManagementPage() {
 
           {type === 'quiz' && (
             <div className="space-y-4 pt-4 border-t border-white/10">
-              <h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider">Quiz Questions (Exactly 5)</h3>
+              <h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider">
+                Quiz Questions (Exactly {isPremium ? 5 : 2})
+              </h3>
               <div className="space-y-6">
+
                 {questions.map((q, qIdx) => (
                   <div key={qIdx} className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-4">
                     <div className="flex items-center justify-between">
