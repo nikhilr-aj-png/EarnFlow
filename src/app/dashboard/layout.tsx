@@ -22,6 +22,9 @@ export default function DashboardLayout({
       } else if (userData && userData.isAdmin === true) {
         // Redirect admin away from user dashboard to keep them separate
         router.push("/admin");
+      } else if (userData && userData.isVerified === false) {
+        // Redirect unverified users to verification page
+        router.push(`/verify-email?email=${encodeURIComponent(user.email || "")}`);
       }
     }
   }, [user, userData, loading, router]);

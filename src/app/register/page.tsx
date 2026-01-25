@@ -45,7 +45,14 @@ function RegisterForm() {
         referredBy: refCode || undefined,
       });
 
-      router.push("/dashboard");
+      // 4. Send OTP
+      await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, name }),
+      });
+
+      router.push(`/verify-email?email=${encodeURIComponent(email)}`);
     } catch (err: any) {
       console.error(err);
       if (err.code === 'auth/email-already-in-use') {

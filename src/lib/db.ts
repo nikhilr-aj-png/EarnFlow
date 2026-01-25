@@ -18,6 +18,7 @@ export async function createUser(uid: string, data: { name: string; email: strin
       isPremium: false,
       coins: 0,
       totalEarned: 0,
+      isVerified: false,
       status: "active",
       createdAt: serverTimestamp(),
     });
