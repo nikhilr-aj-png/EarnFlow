@@ -9,13 +9,15 @@ import {
   Gamepad2,
   User,
   Crown,
-  LogOut
+  LogOut,
+  Home
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 
 const sidebarItems = [
+  { name: "Landing Home", href: "/", icon: Home },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Cards Game", href: "/dashboard/cards", icon: Gamepad2 },
   { name: "Earn Tasks", href: "/tasks", icon: CheckSquare },

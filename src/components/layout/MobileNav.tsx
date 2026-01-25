@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X, LogOut, LayoutDashboard, CheckSquare, Wallet, Gamepad2, Crown, User } from "lucide-react";
+import { Menu, X, LogOut, LayoutDashboard, CheckSquare, Wallet, Gamepad2, Crown, User, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 import { motion, AnimatePresence } from "framer-motion";
 
 const sidebarItems = [
+  { name: "Landing Home", href: "/", icon: Home },
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
   { name: "Cards Game", href: "/dashboard/cards", icon: Gamepad2 },
   { name: "Earn Tasks", href: "/tasks", icon: CheckSquare },
