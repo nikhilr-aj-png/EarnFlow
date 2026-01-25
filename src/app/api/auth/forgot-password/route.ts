@@ -31,7 +31,11 @@ export async function POST(req: Request) {
       if (adminError.code === 'auth/user-not-found') {
         return NextResponse.json({ error: "No user found with this email." }, { status: 404 });
       }
-      return NextResponse.json({ error: "Failed to generate reset link." }, { status: 500 });
+      return NextResponse.json({
+        error: "Failed to generate link. Server Error.",
+        details: adminError.message
+      }, { status: 500 });
+
     }
 
     // 3. Send Email

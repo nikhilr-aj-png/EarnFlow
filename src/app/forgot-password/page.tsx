@@ -33,9 +33,10 @@ export default function ForgotPasswordPage() {
         setSubmitted(true);
         toast.success("Password reset email sent!");
       } else {
-        toast.error(data.error || "Failed to send reset email.");
+        toast.error(data.error || data.details || "Failed to send reset email.");
         console.error("API Error:", data);
       }
+
     } catch (err: any) {
       console.error(err);
       toast.error("Network error. Please try again.");
