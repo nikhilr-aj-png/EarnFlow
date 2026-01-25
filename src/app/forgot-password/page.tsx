@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+// import { sendPasswordResetEmail } from "firebase/auth"; // Removed in favor of API
+// import { auth } from "@/lib/firebase"; // Removed in favor of API
 import { Button } from "@/components/ui/button";
+
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ArrowLeft } from "lucide-react";
@@ -20,16 +21,29 @@ export default function ForgotPasswordPage() {
     setLoading(true);
 
     try {
-      await sendPasswordResetEmail(auth, email);
-      setSubmitted(true);
-      toast.success("Password reset email sent!");
+      const response = await fetch("/api/auth/forgot-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setSubmitted(true);
+        toast.success("Password reset email sent!");
+      } else {
+        toast.error(data.error || "Failed to send reset email.");
+        console.error("API Error:", data);
+      }
     } catch (err: any) {
       console.error(err);
-      toast.error("Failed to send reset email. Please check the address.");
+      toast.error("Network error. Please try again.");
     } finally {
       setLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
