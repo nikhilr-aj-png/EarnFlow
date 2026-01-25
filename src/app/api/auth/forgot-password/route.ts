@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { admin } from "@/lib/firebase-admin";
+import { getFirebaseAdmin } from "@/lib/firebase-admin";
 import nodemailer from "nodemailer";
 
 export async function POST(req: Request) {
@@ -12,8 +12,21 @@ export async function POST(req: Request) {
 
     console.log(`Generating password reset link for ${email}...`);
 
-    // 1. Configure NodeMailer (Using existing verified setup)
+    // 1. Initialize Admin SDK (Lazy Load)
+    let admin;
+    try {
+      admin = getFirebaseAdmin();
+    } catch (initError: any) {
+      console.error("Firebase Admin Init Failed:", initError);
+      return NextResponse.json({
+        error: "Server Configuration Error",
+        details: initError.message
+      }, { status: 500 });
+    }
+
+    // 2. Configure NodeMailer (Using existing verified setup)
     const transporter = nodemailer.createTransport({
+
       service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
