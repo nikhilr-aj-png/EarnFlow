@@ -33,7 +33,7 @@ export function AdminSidebar() {
   return (
     <div className="flex flex-col h-full bg-card border-r border-white/10 w-64 hidden md:flex">
       <div className="p-6 border-b border-white/10">
-        <Link href="/admin" className="flex items-center space-x-2">
+        <Link href="/" className="flex items-center space-x-2">
           <span className="text-xl font-bold text-red-500">
             Admin Panel
           </span>

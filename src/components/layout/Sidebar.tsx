@@ -31,7 +31,7 @@ export function Sidebar() {
   return (
     <div className="flex flex-col h-full bg-card/50 border-r border-white/5 backdrop-blur-xl w-64 hidden md:flex">
       <div className="p-6 border-b border-white/5">
-        <Link href="/dashboard" className="flex items-center space-x-2">
+        <Link href="/" className="flex items-center space-x-2">
           <span className="text-xl font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
             EarnFlow
           </span>

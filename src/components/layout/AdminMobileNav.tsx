@@ -27,7 +27,7 @@ export function AdminMobileNav() {
   return (
     <div className="md:hidden">
       <header className="flex h-16 items-center justify-between px-4 border-b border-red-500/20 bg-background/60 backdrop-blur-xl sticky top-0 z-40">
-        <Link href="/admin" className="flex items-center space-x-2">
+        <Link href="/" className="flex items-center space-x-2">
           <span className="text-xl font-bold text-red-500">
             Admin Panel
           </span>

@@ -26,7 +26,7 @@ export function MobileNav() {
   return (
     <div className="md:hidden">
       <header className="flex h-16 items-center justify-between px-4 border-b border-white/5 bg-background/60 backdrop-blur-xl sticky top-0 z-40">
-        <Link href="/dashboard" className="flex items-center space-x-2">
+        <Link href="/" className="flex items-center space-x-2">
           <span className="text-xl font-bold bg-gradient-to-r from-amber-400 to-yellow-600 bg-clip-text text-transparent">
             EarnFlow
           </span>
