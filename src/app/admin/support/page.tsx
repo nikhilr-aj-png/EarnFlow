@@ -22,8 +22,9 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, MessageSquare, Trash2, CheckCircle, Clock } from "lucide-react";
+import { Loader2, MessageSquare, Trash2, CheckCircle, Clock, Eye, Mail } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Modal } from "@/components/ui/modal";
 
 interface ContactMessage {
   id: string;
@@ -37,6 +38,8 @@ interface ContactMessage {
 export default function AdminSupportPage() {
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedMessage, setSelectedMessage] = useState<ContactMessage | null>(null);
+  const [isViewOpen, setIsViewOpen] = useState(false);
 
   const fetchMessages = async () => {
     try {
@@ -154,6 +157,18 @@ export default function AdminSupportPage() {
                       <Button
                         variant="ghost"
                         size="sm"
+                        onClick={() => {
+                          setSelectedMessage(msg);
+                          setIsViewOpen(true);
+                        }}
+                        className="h-8 w-8 p-0 hover:bg-white/10 text-amber-500"
+                        title="View Message"
+                      >
+                        <Eye className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={() => handleToggleStatus(msg.id, msg.status)}
                         className="h-8 w-8 p-0 hover:bg-white/10"
                         title={msg.status === "pending" ? "Mark as Resolved" : "Mark as Pending"}
@@ -183,6 +198,52 @@ export default function AdminSupportPage() {
           </TableBody>
         </Table>
       </div>
+
+      <Modal
+        isOpen={isViewOpen}
+        onClose={() => setIsViewOpen(false)}
+        title="Support Message Details"
+      >
+        {selectedMessage && (
+          <div className="space-y-6">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">From</p>
+                <p className="text-white font-medium">{selectedMessage.name}</p>
+              </div>
+              <div className="space-y-1 text-right">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Email</p>
+                <p className="text-blue-400 font-medium">{selectedMessage.email}</p>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">Message</p>
+              <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-zinc-300 whitespace-pre-wrap leading-relaxed">
+                {selectedMessage.message}
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button
+                className="flex-1 bg-amber-500 hover:bg-amber-600 text-black font-bold"
+                onClick={() => {
+                  window.location.href = `mailto:${selectedMessage.email}?subject=Re: EarnFlow Support - ${selectedMessage.name}&body=%0A%0A%0A--- Original Message ---%0A${encodeURIComponent(selectedMessage.message)}`;
+                }}
+              >
+                <Mail className="mr-2 h-4 w-4" /> Reply Now
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 text-white border-white/10 hover:bg-white/5"
+                onClick={() => handleToggleStatus(selectedMessage.id, selectedMessage.status)}
+              >
+                {selectedMessage.status === "pending" ? "Mark Resolved" : "Mark Pending"}
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }
