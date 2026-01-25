@@ -149,7 +149,8 @@ export function PlansContent() {
                 <span className="text-4xl font-bold">₹99</span>
                 <span className="bg-red-500/10 text-red-500 text-xs font-bold px-2 py-1 rounded-full border border-red-500/20">80% OFF</span>
               </div>
-              <span className="text-sm text-muted-foreground mt-1">/ one-time</span>
+              <span className="text-sm text-muted-foreground mt-1">/ monthly</span>
+
             </div>
 
             <ul className="space-y-2 text-sm">
