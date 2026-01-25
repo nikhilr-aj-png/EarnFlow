@@ -45,14 +45,16 @@ export async function POST(req: Request) {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      logger: true,
+      debug: true,
     });
 
     console.log(`Attempting to send OTP to ${email}...`);
 
-
     const mailOptions = {
-      from: `"EarnFlow Support" <${process.env.EMAIL_USER}>`,
+      from: process.env.EMAIL_USER,
       to: email,
+
       subject: "Verify Your EarnFlow Account - OTP",
       html: `
         <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
