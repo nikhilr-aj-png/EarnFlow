@@ -24,7 +24,9 @@ export default function AdminGamesPage() {
     duration: 60,
     winnerIndex: 0,
     status: "inactive",
+    isPremium: false,
     cardImages: [
+
       "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop",
       "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop",
@@ -56,6 +58,7 @@ export default function AdminGamesPage() {
         duration: game.duration,
         winnerIndex: game.winnerIndex,
         status: game.status || "inactive",
+        isPremium: game.isPremium || false, // Load tier
         cardImages: game.cardImages || formData.cardImages
       });
     } else {
@@ -66,6 +69,7 @@ export default function AdminGamesPage() {
         duration: 60,
         winnerIndex: 0,
         status: "inactive",
+        isPremium: false, // Default to free
         cardImages: [
           "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop",
           "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
@@ -74,6 +78,7 @@ export default function AdminGamesPage() {
         ]
       });
     }
+
     setIsModalOpen(true);
   };
 
@@ -182,7 +187,11 @@ export default function AdminGamesPage() {
             ) : (
               games.map((game) => (
                 <TableRow key={game.id} className="border-white/5 hover:bg-white/5">
-                  <TableCell className="font-medium text-white py-4">{game.question}</TableCell>
+                  <TableCell className="font-medium text-white py-4">
+                    {game.question}
+                    {game.isPremium && <span className="ml-2 text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">PREMIUM</span>}
+                  </TableCell>
+
                   <TableCell className="text-center">
                     <div className="flex items-center justify-center gap-1 text-amber-500 font-bold">
                       <Plus className="h-3 w-3 rotate-45" /> {game.price}
@@ -284,6 +293,19 @@ export default function AdminGamesPage() {
                 <option value={3} className="bg-zinc-900">Card 4</option>
               </select>
             </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-bold text-amber-500 uppercase tracking-wider">Game Tier</label>
+              <select
+                className="w-full bg-white/5 border border-white/10 rounded-md h-12 px-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500"
+                value={formData.isPremium ? "premium" : "free"}
+                onChange={(e) => setFormData({ ...formData, isPremium: e.target.value === "premium" })}
+              >
+                <option value="free" className="bg-zinc-900">Free User Game</option>
+                <option value="premium" className="bg-zinc-900 text-amber-500 font-bold">Premium User Game</option>
+              </select>
+            </div>
+
 
             <div className="space-y-4 pt-4 border-t border-white/10">
               <h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
