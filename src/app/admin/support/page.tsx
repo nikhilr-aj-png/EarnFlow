@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { Loader2, Mail, Trash2, CheckCircle, Clock } from "lucide-react";
+import { Loader2, MessageSquare, Trash2, CheckCircle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 interface ContactMessage {
@@ -168,8 +168,12 @@ export default function AdminSupportPage() {
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
-                      <a href={`mailto:${msg.email}?subject=Re: EarnFlow Support Inquiry`} className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 hover:bg-white/10 transition-colors">
-                        <Mail className="h-4 w-4 text-blue-400" />
+                      <a
+                        href={`mailto:${msg.email}?subject=Re: EarnFlow Support - ${msg.name}&body=%0A%0A%0A--- Original Message ---%0A${encodeURIComponent(msg.message)}`}
+                        className="inline-flex items-center justify-center rounded-md text-sm font-medium h-8 w-8 hover:bg-white/10 transition-colors text-blue-400"
+                        title="Reply via Email"
+                      >
+                        <MessageSquare className="h-4 w-4" />
                       </a>
                     </div>
                   </TableCell>
