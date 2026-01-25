@@ -46,10 +46,11 @@ export function PlansContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          amount: 499,
+          amount: 99, // Discounted Price
           receipt: `upgrade_${user.uid}`
         }),
       });
+
       const orderData = await orderResponse.json();
 
       if (!orderResponse.ok) {
@@ -142,9 +143,15 @@ export function PlansContent() {
             <CardDescription>Maximize your daily income</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="text-4xl font-bold flex items-baseline gap-1">
-              ₹499 <span className="text-sm font-normal text-muted-foreground">/ monthly</span>
+            <div className="flex flex-col">
+              <span className="text-sm text-muted-foreground line-through decoration-red-500/50">₹499</span>
+              <div className="flex items-center gap-2">
+                <span className="text-4xl font-bold">₹99</span>
+                <span className="bg-red-500/10 text-red-500 text-xs font-bold px-2 py-1 rounded-full border border-red-500/20">80% OFF</span>
+              </div>
+              <span className="text-sm text-muted-foreground mt-1">/ one-time</span>
             </div>
+
             <ul className="space-y-2 text-sm">
               <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Double daily check-in bonus</li>
               <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Access to high-paying tasks</li>

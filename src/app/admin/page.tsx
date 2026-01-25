@@ -14,6 +14,7 @@ export default function AdminDashboard() {
     payouts: 0,
     pending: 0,
     tasks: 0,
+    premiumRevenue: 0,
   });
   const [recentRequests, setRecentRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,12 +32,21 @@ export default function AdminDashboard() {
         approvedSnap.forEach(doc => totalPayouts += doc.data().amount);
         successfulSnap.forEach(doc => totalPayouts += doc.data().amount);
 
+        // Calculate Premium Revenue
+        let premiumCount = 0;
+        usersSnap.forEach(doc => {
+          if (doc.data().isPremium) premiumCount++;
+        });
+        const premiumRevenue = premiumCount * 99;
+
         setStats({
           users: usersSnap.size,
           tasks: tasksSnap.size,
           pending: pendingSnap.size,
           payouts: totalPayouts,
+          premiumRevenue,
         });
+
 
         // Recent Activity
         const recentQ = query(collection(db, "withdrawals"), orderBy("createdAt", "desc"), limit(5));
@@ -101,7 +111,18 @@ export default function AdminDashboard() {
             <p className="text-xs text-muted-foreground">Live in app</p>
           </CardContent>
         </Card>
+        <Card className="border-amber-500/20 bg-amber-500/5">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-amber-500">Premium Revenue</CardTitle>
+            <Coins className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-amber-500">₹{stats.premiumRevenue.toLocaleString()}</div>
+            <p className="text-xs text-muted-foreground">From subscriptions</p>
+          </CardContent>
+        </Card>
       </div>
+
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4 border-white/10">
