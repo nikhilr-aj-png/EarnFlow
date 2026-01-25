@@ -65,7 +65,16 @@ export async function POST(req: Request) {
     }
 
   } catch (error: any) {
-    console.error("Internal API Error:", error);
-    return NextResponse.json({ error: "An unexpected error occurred." }, { status: 500 });
+    console.error("CRITICAL API ERROR:", error);
+    // Explicitly log the error details to the server console
+    console.error("Error Name:", error.name);
+    console.error("Error Message:", error.message);
+    console.error("Error Stack:", error.stack);
+
+    return NextResponse.json({
+      error: "Internal Server Error",
+      details: error.message
+    }, { status: 500 });
   }
 }
+
