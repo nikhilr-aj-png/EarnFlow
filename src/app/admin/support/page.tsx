@@ -114,7 +114,7 @@ export default function AdminSupportPage() {
               <TableHead>Message</TableHead>
               <TableHead>Date</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead className="text-right min-w-[150px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
