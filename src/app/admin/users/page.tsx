@@ -186,10 +186,26 @@ export default function UserManagementPage() {
                   </TableCell>
                   <TableCell>{(user.coins || 0).toLocaleString()}</TableCell>
                   <TableCell>
-                    <span className={(user.status || 'active') === 'active' ? 'text-green-500' : 'text-red-500 font-bold'}>
-                      {(user.status || 'active').toUpperCase()}
-                    </span>
+                    {user.status === 'blocked' ? (
+                      <span className="text-red-500 font-bold">BLOCKED</span>
+                    ) : (
+                      (() => {
+                        const lastSeen = user.lastSeen?.toDate ? user.lastSeen.toDate() : new Date(0);
+                        const diffMins = (new Date().getTime() - lastSeen.getTime()) / 60000;
+                        const isOnline = diffMins < 5; // Online if active in last 5 mins
+
+                        return (
+                          <div className="flex items-center gap-2">
+                            <span className={`h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></span>
+                            <span className={isOnline ? 'text-green-500 font-bold' : 'text-muted-foreground'}>
+                              {isOnline ? "ONLINE" : "OFFLINE"}
+                            </span>
+                          </div>
+                        );
+                      })()
+                    )}
                   </TableCell>
+
                   <TableCell className="text-right">
                     {user.isAdmin ? (
                       <Badge variant="outline" className="border-red-500/50 text-red-500">Super Admin</Badge>

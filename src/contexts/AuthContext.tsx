@@ -35,8 +35,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       if (user) {
         setLoading(true);
-        const { doc, onSnapshot } = await import("firebase/firestore");
+        const { doc, onSnapshot, updateDoc, serverTimestamp } = await import("firebase/firestore");
         const { db } = await import("@/lib/firebase");
+
+        // Track user presence: Update lastSeen on session start
+        const updatePresence = async () => {
+          try {
+            await updateDoc(doc(db, "users", user.uid), {
+              lastSeen: serverTimestamp()
+            });
+          } catch (e) {
+            console.error("Error updating presence:", e);
+          }
+        };
+        updatePresence();
 
         unsubDoc = onSnapshot(doc(db, "users", user.uid), (docSnap) => {
           setUserData(docSnap.data() || null);
@@ -45,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUserData(null);
           setLoading(false);
         });
+
       } else {
         setUserData(null);
         setLoading(false);
