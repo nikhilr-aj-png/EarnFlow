@@ -9,7 +9,7 @@ import { motion } from "framer-motion";
 
 export function ReferralCard({ code }: { code: string }) {
   const handleCopy = () => {
-    navigator.clipboard.writeText(`https://earnflow.com/register?ref=${code}`);
+    navigator.clipboard.writeText(`https://earnflow.in/register?ref=${code}`);
     toast.success("Referral link copied!");
   };
 
@@ -30,13 +30,14 @@ export function ReferralCard({ code }: { code: string }) {
           <div className="flex items-center gap-2">
             <Input
               readOnly
-              value={`https://earnflow.com/register?ref=${code}`}
+              value={`https://earnflow.in/register?ref=${code}`}
               className="bg-black/40 border-indigo-500/20 text-indigo-100 h-9 text-xs"
             />
             <Button size="icon" onClick={handleCopy} variant="outline" className="h-9 w-9 border-indigo-500/30 hover:bg-indigo-500/20">
               <Copy className="h-4 w-4" />
             </Button>
           </div>
+
           <div className="grid grid-cols-3 gap-2 text-center">
             <div className="p-2 rounded-lg bg-black/40 border border-indigo-500/10">
               <div className="font-bold text-lg text-indigo-300">0</div>
