@@ -37,10 +37,11 @@ export async function POST(req: Request) {
     }
 
     // 2. Configure NodeMailer
+    console.log("Checking Environment Variables...");
+    console.log("EMAIL_USER:", process.env.EMAIL_USER ? "Loaded (Ending in " + process.env.EMAIL_USER.split('@')[1] + ")" : "NOT LOADED");
+
     const transporter = nodemailer.createTransport({
-      host: "smtp.gmail.com",
-      port: 465,
-      secure: true, // use SSL
+      service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
@@ -49,27 +50,38 @@ export async function POST(req: Request) {
       debug: true,
     });
 
+    try {
+      console.log("Verifying transporter connection...");
+      await transporter.verify();
+      console.log("Transporter verification successful.");
+    } catch (verifyError: any) {
+      console.error("Transporter Verification Failed:", verifyError.message);
+      return NextResponse.json({
+        success: false,
+        error: "SMTP Connection failed. Check App Password.",
+        details: verifyError.message
+      }, { status: 500 });
+    }
+
     console.log(`Attempting to send OTP to ${email}...`);
+    // ... rest of the code
+
 
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to: email,
-
-      subject: "Verify Your EarnFlow Account - OTP",
+      subject: `Your OTP Code: ${otp}`,
+      text: `Hello ${name || "User"},\n\nYour OTP code is: ${otp}\n\nThis code is valid for 10 minutes.`,
       html: `
-        <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-          <h2 style="color: #f59e0b; text-align: center;">Welcome to EarnFlow!</h2>
+        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
+          <h2 style="color: #f59e0b;">Your OTP Code</h2>
           <p>Hi ${name || "User"},</p>
-          <p>Thank you for joining EarnFlow. To complete your registration and start earning, please verify your email using the following One-Time Password (OTP):</p>
-          <div style="background: #fdf2f2; padding: 20px; text-align: center; border-radius: 8px; margin: 20px 0;">
-            <span style="font-size: 32px; font-bold; letter-spacing: 5px; color: #b91c1c;">${otp}</span>
-          </div>
-          <p style="color: #666; font-size: 14px;">This OTP is valid for 10 minutes. If you did not request this, please ignore this email.</p>
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;" />
-          <p style="text-align: center; color: #999; font-size: 12px;">EarnFlow Team &copy; 2026</p>
+          <p>Your verification code is: <strong style="font-size: 24px; color: #b91c1c;">${otp}</strong></p>
+          <p style="font-size: 12px; color: #666;">This code is valid for 10 minutes.</p>
         </div>
       `,
     };
+
 
     // 3. Send Email
     // Check if user has updated the credentials
