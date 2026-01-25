@@ -36,21 +36,20 @@ export async function POST(req: Request) {
 
     // 3. Send Email
     const mailOptions = {
-      from: process.env.EMAIL_USER,
+      from: `"Support Team" <${process.env.EMAIL_USER}>`,
       to: email,
-      subject: "Reset Your EarnFlow Password",
-      text: `Hello,\n\nYou requested a password reset for your EarnFlow account.\n\nClick this link to reset your password:\n${resetLink}\n\nIf you did not request this, please ignore this email.`,
+      subject: "Your password reset link",
+      text: `Click here to reset your password: ${resetLink}`,
       html: `
-        <div style="font-family: sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #f59e0b;">Reset Password Request</h2>
-          <p>Hello,</p>
-          <p>We received a request to reset your password for your <strong>EarnFlow</strong> account.</p>
-          <p>Click the button below to set a new password:</p>
-          <a href="${resetLink}" style="display: inline-block; padding: 12px 24px; background-color: #f59e0b; color: white; text-decoration: none; border-radius: 5px; font-weight: bold; margin: 20px 0;">Reset Password</a>
-          <p style="color: #666; font-size: 14px;">If you didn't ask to reset your password, you can safely ignore this email.</p>
-        </div>
+        <p>Hello,</p>
+        <p>You requested to reset your password.</p>
+        <p><a href="${resetLink}">Click here to reset it</a></p>
+        <p>Link: ${resetLink}</p>
+        <br>
+        <p>Thanks,<br>EarnFlow Team</p>
       `,
     };
+
 
     try {
       await transporter.sendMail(mailOptions);
