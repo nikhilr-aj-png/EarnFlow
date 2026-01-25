@@ -37,15 +37,31 @@ export async function POST(req: Request) {
     }
 
     // 2. Configure NodeMailer
+    console.log("DEBUG: Checking SMTP Credentials...");
+    console.log("EMAIL_USER:", process.env.EMAIL_USER ? "LOADED" : "MISSING");
+    console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "LOADED" : "MISSING");
+
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
+      logger: true,
+      debug: true
     });
 
+    try {
+      console.log("Verifying connection to Gmail SMTP...");
+      await transporter.verify();
+      console.log("SUCCESS: SMTP Connection verified!");
+    } catch (vErr: any) {
+      console.error("CRITICAL: SMTP Connection failed:", vErr.message);
+      return NextResponse.json({ success: false, error: "SMTP Login failed", details: vErr.message }, { status: 500 });
+    }
+
     console.log(`Attempting to send OTP to ${email}...`);
+
 
     // ... rest of the code
 
