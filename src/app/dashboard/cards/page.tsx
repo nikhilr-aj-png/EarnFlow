@@ -90,7 +90,12 @@ function GalleryGameCard({ game }: { game: any }) {
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-60"
           alt="Game Preview"
         />
-        <div className="absolute top-4 right-4 z-20">
+        <div className="absolute top-4 right-4 z-20 flex flex-col items-end gap-2">
+          {game.isPremium && (
+            <div className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg bg-amber-500 text-black border border-amber-400">
+              PREMIUM
+            </div>
+          )}
           <div className={cn(
             "px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg",
             localTime > 0 ? "bg-red-500 text-white animate-pulse" : "bg-zinc-800 text-zinc-500"
@@ -98,6 +103,7 @@ function GalleryGameCard({ game }: { game: any }) {
             {localTime > 0 ? "LIVE NOW" : "SESSION ENDED"}
           </div>
         </div>
+
       </div>
       <CardHeader>
         <CardTitle className="text-xl group-hover:text-amber-500 transition-colors flex items-center justify-between">
