@@ -115,14 +115,22 @@ export default function UserManagementPage() {
       u.name?.toLowerCase().includes(search.toLowerCase()) ||
       u.referralCode?.toLowerCase().includes(search.toLowerCase());
 
+    if (filter === "admins") return matchesSearch && u.isAdmin;
+
+    // For other tabs, EXCLUDE admins
+    if (u.isAdmin) return false;
+
     if (filter === "premium") return matchesSearch && u.isPremium;
     if (filter === "free") return matchesSearch && !u.isPremium;
+
+    // 'all' includes everyone EXCEPT admins
     return matchesSearch;
   });
 
   if (loading) {
     return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-amber-500" /></div>;
   }
+
 
   return (
     <div className="space-y-6">
@@ -132,6 +140,8 @@ export default function UserManagementPage() {
           <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")} size="sm">All</Button>
           <Button variant={filter === "premium" ? "default" : "outline"} onClick={() => setFilter("premium")} size="sm" className={filter === "premium" ? "bg-amber-500 hover:bg-amber-600" : ""}>Premium</Button>
           <Button variant={filter === "free" ? "default" : "outline"} onClick={() => setFilter("free")} size="sm">Free</Button>
+          <Button variant={filter === "admins" ? "default" : "outline"} onClick={() => setFilter("admins")} size="sm" className={filter === "admins" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20" : "text-red-500 hover:bg-red-500/5"}>Admins</Button>
+
         </div>
         <div className="relative w-full md:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -181,28 +191,35 @@ export default function UserManagementPage() {
                     </span>
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="sm" className="mr-2" onClick={() => { setSelectedUser(user); setIsModalOpen(true); }}>View</Button>
-                    <Button
-                      variant={user.status === 'blocked' ? "outline" : "destructive"}
-                      size="sm"
-                      className={user.status === 'blocked' ? "bg-green-600/10 text-green-500 mr-2" : "mr-2"}
-                      onClick={() => toggleStatus(user.id, user.status || 'active')}
-                    >
-                      {user.status === 'blocked' ? (
-                        <><ShieldCheck className="h-4 w-4 mr-1" /> Unblock</>
-                      ) : (
-                        <><ShieldAlert className="h-4 w-4 mr-1" /> Block</>
-                      )}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                      onClick={() => handleDeleteUser(user.id, user.name || user.email)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    {user.isAdmin ? (
+                      <Badge variant="outline" className="border-red-500/50 text-red-500">Super Admin</Badge>
+                    ) : (
+                      <>
+                        <Button variant="ghost" size="sm" className="mr-2" onClick={() => { setSelectedUser(user); setIsModalOpen(true); }}>View</Button>
+                        <Button
+                          variant={user.status === 'blocked' ? "outline" : "destructive"}
+                          size="sm"
+                          className={user.status === 'blocked' ? "bg-green-600/10 text-green-500 mr-2" : "mr-2"}
+                          onClick={() => toggleStatus(user.id, user.status || 'active')}
+                        >
+                          {user.status === 'blocked' ? (
+                            <><ShieldCheck className="h-4 w-4 mr-1" /> Unblock</>
+                          ) : (
+                            <><ShieldAlert className="h-4 w-4 mr-1" /> Block</>
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                          onClick={() => handleDeleteUser(user.id, user.name || user.email)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </>
+                    )}
                   </TableCell>
+
                 </TableRow>
               ))
             )}
