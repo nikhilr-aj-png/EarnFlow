@@ -9,7 +9,8 @@ import {
   ArrowUpRight,
   Users,
   LogOut,
-  CreditCard
+  CreditCard,
+  MessageSquare
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +23,7 @@ const adminSidebarItems = [
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: ArrowUpRight },
   { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Support", href: "/admin/support", icon: MessageSquare },
 ];
 
 export function AdminSidebar() {

@@ -55,5 +55,11 @@ service cloud.firestore {
       allow update: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
       allow delete: if isAdmin();
     }
+
+    // Contact Messages
+    match /contactMessages/{messageId} {
+      allow create: if true;
+      allow read, update, delete: if isAdmin();
+    }
   }
 }
