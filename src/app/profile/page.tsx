@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { updateProfile, updatePassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore"; // Added imports
+import { db } from "@/lib/firebase"; // Added imports
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +14,25 @@ import { User, Lock, Save, Loader2 } from "lucide-react";
 export default function ProfilePage() {
   const { user } = useAuth();
   const [name, setName] = useState(user?.displayName || "");
+  const [userData, setUserData] = useState<any>(null); // State for Firestore data
   const [newPassword, setNewPassword] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (user?.uid) {
+        try {
+          const docSnap = await getDoc(doc(db, "users", user.uid));
+          if (docSnap.exists()) {
+            setUserData(docSnap.data());
+          }
+        } catch (error) {
+          console.error("Error fetching user data:", error);
+        }
+      }
+    };
+    fetchUserData();
+  }, [user]);
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +48,7 @@ export default function ProfilePage() {
       setLoading(false);
     }
   };
+
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +98,18 @@ export default function ProfilePage() {
                   className="bg-background/50 border-white/10"
                 />
               </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Unique ID</label>
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={userData?.referralCode || "Loading..."}
+                    disabled
+                    className="bg-background/50 border-white/10 font-mono text-amber-500 font-bold"
+                  />
+                </div>
+
+              </div>
+
               <div className="space-y-2">
                 <label className="text-sm font-medium">Email Address</label>
                 <Input

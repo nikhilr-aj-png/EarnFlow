@@ -6,10 +6,20 @@ const generateCode = () => Math.random().toString(36).substring(2, 8).toUpperCas
 
 export async function createUser(uid: string, data: { name: string; email: string; referredBy?: string }) {
   try {
+    const userRef = doc(db, "users", uid);
+    const userSnap = await getDocs(query(collection(db, "users"), where("uid", "==", uid))); // Check via query or direct doc get
+
+    // Better: Direct doc check
+    const existingDoc = await import("firebase/firestore").then(mod => mod.getDoc(userRef));
+
+    if (existingDoc.exists()) {
+      return; // User already exists, do not overwrite
+    }
+
     const myReferralCode = generateCode();
 
     // 1. Create the new user
-    await setDoc(doc(db, "users", uid), {
+    await setDoc(userRef, {
       uid,
       name: data.name,
       email: data.email,
@@ -22,6 +32,7 @@ export async function createUser(uid: string, data: { name: string; email: strin
       status: "active",
       createdAt: serverTimestamp(),
     });
+
 
     // 2. Reward the referrer if exists
     if (data.referredBy) {

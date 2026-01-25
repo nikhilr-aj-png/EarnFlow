@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/modal";
 export default function UserManagementPage() {
   const [users, setUsers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all"); // 'all', 'premium', 'free'
   const [search, setSearch] = useState("");
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -40,7 +41,9 @@ export default function UserManagementPage() {
     try {
       await updateDoc(doc(db, "users", id), { status: newStatus });
       toast.success(`User ${newStatus}!`);
-      fetchUsers();
+
+      // Optimistic update
+      setUsers(users.map(u => u.id === id ? { ...u, status: newStatus } : u));
       if (selectedUser?.id === id) {
         setSelectedUser({ ...selectedUser, status: newStatus });
       }
@@ -53,7 +56,8 @@ export default function UserManagementPage() {
     try {
       await updateDoc(doc(db, "users", id), { isPremium: !currentPremium });
       toast.success(`Premium status updated!`);
-      fetchUsers();
+      // Optimistic update
+      setUsers(users.map(u => u.id === id ? { ...u, isPremium: !currentPremium } : u));
       if (selectedUser?.id === id) {
         setSelectedUser({ ...selectedUser, isPremium: !currentPremium });
       }
@@ -73,7 +77,14 @@ export default function UserManagementPage() {
         totalEarned: Number(selectedUser.totalEarned)
       });
       toast.success("User finances updated!");
-      fetchUsers();
+
+      // Optimistic update
+      setUsers(users.map(u => u.id === selectedUser.id ? {
+        ...u,
+        coins: Number(selectedUser.coins),
+        totalEarned: Number(selectedUser.totalEarned)
+      } : u));
+
     } catch (err) {
       toast.error("Failed to update coins.");
     } finally {
@@ -84,21 +95,30 @@ export default function UserManagementPage() {
   const handleDeleteUser = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to PERMANENTLY delete user "${name}"? This action cannot be undone.`)) return;
 
+    // Optimistic delete
+    const prevUsers = [...users];
+    setUsers(users.filter(u => u.id !== id));
+
     try {
       await deleteDoc(doc(db, "users", id));
       toast.success("User deleted successfully!");
-      fetchUsers();
       setIsModalOpen(false);
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete user.");
+      setUsers(prevUsers); // Revert
     }
   };
 
-  const filteredUsers = users.filter(u =>
-    u.email?.toLowerCase().includes(search.toLowerCase()) ||
-    u.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = u.email?.toLowerCase().includes(search.toLowerCase()) ||
+      u.name?.toLowerCase().includes(search.toLowerCase()) ||
+      u.referralCode?.toLowerCase().includes(search.toLowerCase());
+
+    if (filter === "premium") return matchesSearch && u.isPremium;
+    if (filter === "free") return matchesSearch && !u.isPremium;
+    return matchesSearch;
+  });
 
   if (loading) {
     return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-amber-500" /></div>;
@@ -108,11 +128,16 @@ export default function UserManagementPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+        <div className="flex gap-2 w-full md:w-auto">
+          <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")} size="sm">All</Button>
+          <Button variant={filter === "premium" ? "default" : "outline"} onClick={() => setFilter("premium")} size="sm" className={filter === "premium" ? "bg-amber-500 hover:bg-amber-600" : ""}>Premium</Button>
+          <Button variant={filter === "free" ? "default" : "outline"} onClick={() => setFilter("free")} size="sm">Free</Button>
+        </div>
         <div className="relative w-full md:w-64">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             className="pl-9 bg-card border-white/10"
-            placeholder="Search users..."
+            placeholder="Search name, email, ID..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
@@ -123,7 +148,7 @@ export default function UserManagementPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>User</TableHead>
+              <TableHead>User & ID</TableHead>
               <TableHead>Premium</TableHead>
               <TableHead>Coins</TableHead>
               <TableHead>Status</TableHead>
@@ -140,8 +165,10 @@ export default function UserManagementPage() {
                 <TableRow key={user.id}>
                   <TableCell>
                     <div className="font-medium">{user.name || "No Name"}</div>
+                    <div className="text-xs font-mono text-amber-500">{user.referralCode || "NO-ID"}</div>
                     <div className="text-xs text-muted-foreground">{user.email}</div>
                   </TableCell>
+
                   <TableCell>
                     <Badge variant={user.isPremium ? "default" : "secondary"}>
                       {user.isPremium ? "Yes" : "No"}
@@ -194,7 +221,10 @@ export default function UserManagementPage() {
               </div>
               <div className="p-3 rounded-lg bg-white/5 border border-white/5">
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">User ID</p>
-                <p className="font-mono text-[10px] truncate">{selectedUser.id}</p>
+                <p className="font-mono text-[10px] truncate leading-5">
+                  <span className="block text-amber-500 text-base">{selectedUser.referralCode}</span>
+                  <span className="opacity-50 text-[9px]">{selectedUser.id}</span>
+                </p>
               </div>
               <div className="p-3 rounded-lg bg-white/5 border border-white/5 col-span-2">
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Email Address</p>
