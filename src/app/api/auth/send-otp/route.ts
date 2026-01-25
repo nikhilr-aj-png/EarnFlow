@@ -18,26 +18,40 @@ export async function POST(req: Request) {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes expiry
 
     // 1. Save OTP to Firestore
-    await setDoc(doc(db, "verification_codes", email), {
-      email,
-      code: otp,
-      expiresAt,
-      createdAt: serverTimestamp(),
-    });
+    try {
+      console.log(`Writing OTP to Firestore for ${email}...`);
+      await setDoc(doc(db, "verification_codes", email), {
+        email,
+        code: otp,
+        expiresAt,
+        createdAt: serverTimestamp(),
+      });
+      console.log("Firestore write successful.");
+    } catch (fsError: any) {
+      console.error("Firestore Error - Failed to save OTP:", fsError.message);
+      return NextResponse.json({
+        success: false,
+        error: "Failed to initialize verification. Please try again.",
+        details: fsError.message
+      }, { status: 500 });
+    }
 
     // 2. Configure NodeMailer
-    // IMPORTANT: In production, use environment variables!
-    // For now, I'll use a placeholder structure.
     const transporter = nodemailer.createTransport({
-      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true, // use SSL
       auth: {
-        user: process.env.EMAIL_USER || "your-email@gmail.com",
-        pass: process.env.EMAIL_PASS || "your-app-password",
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
       },
     });
 
+    console.log(`Attempting to send OTP to ${email}...`);
+
+
     const mailOptions = {
-      from: '"EarnFlow Support" <no-reply@earnflow.com>',
+      from: `"EarnFlow Support" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: "Verify Your EarnFlow Account - OTP",
       html: `
