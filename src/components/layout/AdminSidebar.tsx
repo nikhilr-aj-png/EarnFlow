@@ -10,7 +10,8 @@ import {
   Users,
   LogOut,
   CreditCard,
-  MessageSquare
+  MessageSquare,
+  Zap
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -22,6 +23,7 @@ const adminSidebarItems = [
   { name: "Manage Tasks", href: "/admin/tasks", icon: ListTodo },
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: ArrowUpRight },
+  { name: "Automation (AI)", href: "/admin/automation", icon: Zap },
   { name: "Users", href: "/admin/users", icon: Users },
   { name: "Support", href: "/admin/support", icon: MessageSquare },
 ];
