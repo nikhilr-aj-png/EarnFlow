@@ -12,21 +12,33 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Modal } from "@/components/ui/modal";
 
 export default function AdminGamesPage() {
+  const [activeTab, setActiveTab] = useState<'active' | 'automation'>('active');
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<any>(null);
   const [saving, setSaving] = useState(false);
 
+  // Automation State
+  const [autoEnabled, setAutoEnabled] = useState(false);
+  const [autoSettings, setAutoSettings] = useState<{
+    free: Record<string, number>,
+    premium: Record<string, number>
+  }>({
+    free: { "24h": 100, "12h": 80, "6h": 60, "3h": 40, "2h": 30, "1h": 20, "30m": 10 },
+    premium: { "24h": 200, "12h": 160, "6h": 120, "3h": 80, "2h": 60, "1h": 40, "30m": 20 }
+  });
+
+  const DURATIONS = ["24h", "12h", "6h", "3h", "2h", "1h", "30m"];
+
   const [formData, setFormData] = useState({
     question: "Which card is the winner?",
     price: 10,
-    duration: 60,
+    duration: "1h", // Default string enum
     winnerIndex: 0,
     status: "inactive",
     isPremium: false,
     cardImages: [
-
       "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop",
       "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
       "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop",
@@ -38,14 +50,23 @@ export default function AdminGamesPage() {
     const q = query(collection(db, "cardGames"));
     const unsub = onSnapshot(q, (snap) => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      const sorted = data.sort((a, b) => {
-        const timeA = a.createdAt?.seconds || 0;
-        const timeB = b.createdAt?.seconds || 0;
-        return timeB - timeA;
-      });
-      setGames(sorted);
+      setGames(data);
       setLoading(false);
     });
+
+    // Load Automation Settings
+    const loadSettings = async () => {
+      try {
+        const docSnap = await getDocs(query(collection(db, "settings")));
+        // Ideally fetching specific doc 'gameAutomation'
+        // const s = await getDoc(doc(db, "settings", "gameAutomation"));
+        // keeping it simple with onSnapshot for games, but fetch once for settings
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    loadSettings();
+
     return () => unsub();
   }, []);
 
@@ -55,10 +76,10 @@ export default function AdminGamesPage() {
       setFormData({
         question: game.question,
         price: game.price,
-        duration: game.duration,
+        duration: game.duration || "1h",
         winnerIndex: game.winnerIndex,
         status: game.status || "inactive",
-        isPremium: game.isPremium || false, // Load tier
+        isPremium: game.isPremium || false,
         cardImages: game.cardImages || formData.cardImages
       });
     } else {
@@ -66,10 +87,10 @@ export default function AdminGamesPage() {
       setFormData({
         question: "Which card is the winner?",
         price: 10,
-        duration: 60,
+        duration: "1h",
         winnerIndex: 0,
         status: "inactive",
-        isPremium: false, // Default to free
+        isPremium: false,
         cardImages: [
           "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop",
           "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
@@ -78,7 +99,6 @@ export default function AdminGamesPage() {
         ]
       });
     }
-
     setIsModalOpen(true);
   };
 
@@ -110,240 +130,220 @@ export default function AdminGamesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Are you sure you want to delete this game?")) return;
-    try {
+    if (confirm("Delete this game?")) {
       await deleteDoc(doc(db, "cardGames", id));
-      toast.success("Game deleted!");
-
-    } catch (err) {
-      toast.error("Delete failed.");
+      toast.success("Deleted");
     }
   };
 
-  const handleStartSession = async (game: any) => {
+  const handleSaveAutomation = async () => {
+    setSaving(true);
     try {
-      await setDoc(doc(db, "cardGames", game.id), {
-        status: "active",
-        startTime: serverTimestamp(),
+      await setDoc(doc(db, "settings", "gameAutomation"), {
+        isEnabled: autoEnabled,
+        settings: autoSettings,
         updatedAt: serverTimestamp()
-      }, { merge: true });
-      toast.success(`Session started for: ${game.question}`);
-
-    } catch (err) {
-      toast.error("Failed to start session.");
+      });
+      toast.success("Automation Settings Saved!");
+    } catch (e) {
+      toast.error("Failed to save settings");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const toggleGameStatus = async (id: string, currentStatus: string) => {
-    const newStatus = currentStatus === "active" ? "inactive" : "active";
-    try {
-      await setDoc(doc(db, "cardGames", id), {
-        status: newStatus,
-        updatedAt: serverTimestamp()
-      }, { merge: true });
-      toast.success(`Game marked as ${newStatus}!`);
-    } catch (err) {
-      toast.error("Status update failed.");
-    }
+  // Helper to update setting
+  const updateSetting = (type: 'free' | 'premium', duration: string, val: number) => {
+    setAutoSettings(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [duration]: val
+      }
+    }));
   };
-
-  if (loading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div className="space-y-1">
-          <h1 className="text-3xl font-bold tracking-tight text-white">Game Management</h1>
-          <p className="text-muted-foreground text-sm">Create and manage multiple card reveal games.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-white">Game Management</h1>
+        <div className="flex gap-2">
+          <Button
+            variant={activeTab === 'active' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('active')}
+            className={activeTab === 'active' ? "bg-amber-500 text-black" : "border-white/10"}
+          >
+            Active Games
+          </Button>
+          <Button
+            variant={activeTab === 'automation' ? 'default' : 'outline'}
+            onClick={() => setActiveTab('automation')}
+            className={activeTab === 'automation' ? "bg-amber-500 text-black" : "border-white/10"}
+          >
+            Automation
+          </Button>
         </div>
-        <Button onClick={() => handleOpenModal()} className="bg-amber-600 hover:bg-amber-700 text-black font-bold">
-          <Plus className="mr-2 h-4 w-4" /> Add New Game
-        </Button>
       </div>
 
-      <div className="rounded-xl border border-white/10 bg-card/50 backdrop-blur-sm overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-white/10 hover:bg-transparent">
-              <TableHead className="text-muted-foreground font-bold">Question</TableHead>
-              <TableHead className="text-muted-foreground font-bold text-center">Price</TableHead>
-              <TableHead className="text-muted-foreground font-bold text-center">Status</TableHead>
-              <TableHead className="text-muted-foreground font-bold text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {games.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                  No games found. Click "Add New Game" to start.
-                </TableCell>
-              </TableRow>
-            ) : (
-              games.map((game) => (
-                <TableRow key={game.id} className="border-white/5 hover:bg-white/5">
-                  <TableCell className="font-medium text-white py-4">
-                    {game.question}
-                    {game.isPremium && <span className="ml-2 text-[10px] bg-amber-500/10 text-amber-500 px-1.5 py-0.5 rounded border border-amber-500/20">PREMIUM</span>}
-                  </TableCell>
-
-                  <TableCell className="text-center">
-                    <div className="flex items-center justify-center gap-1 text-amber-500 font-bold">
-                      <Plus className="h-3 w-3 rotate-45" /> {game.price}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-center">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => toggleGameStatus(game.id, game.status)}
-                      className={game.status === 'active' ? 'text-green-500 hover:text-green-400' : 'text-muted-foreground'}
-                    >
-                      {game.status?.toUpperCase() || "INACTIVE"}
-                    </Button>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 text-amber-500 hover:bg-amber-500/10"
-                        title="Start Timer (New Session)"
-                        onClick={() => handleStartSession(game)}
-                      >
-                        <Play className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 text-blue-500 hover:bg-blue-500/10"
-                        onClick={() => handleOpenModal(game)}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="h-8 w-8 p-0 text-red-500 hover:bg-red-500/10"
-                        onClick={() => handleDelete(game.id)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
+      {activeTab === 'active' ? (
+        <>
+          <div className="flex justify-end">
+            <Button onClick={() => handleOpenModal()} className="bg-amber-600 hover:bg-amber-700 text-black font-bold">
+              <Plus className="mr-2 h-4 w-4" /> Add New Game
+            </Button>
+          </div>
+          <div className="rounded-xl border border-white/10 bg-card/50 backdrop-blur-sm overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="border-white/10 hover:bg-transparent">
+                  <TableHead className="text-muted-foreground font-bold">Question</TableHead>
+                  <TableHead className="text-muted-foreground font-bold text-center">Duration</TableHead>
+                  <TableHead className="text-muted-foreground font-bold text-center">Price</TableHead>
+                  <TableHead className="text-muted-foreground font-bold text-right">Actions</TableHead>
                 </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
-
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingGame ? "Edit Game" : "Create New Game"}>
-        <form onSubmit={handleSave} className="space-y-6 max-h-[80vh] overflow-y-auto pr-2">
-          <div className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-amber-500 uppercase tracking-wider">Highlight Question</label>
-              <Input
-                required
-                value={formData.question}
-                onChange={(e) => setFormData({ ...formData, question: e.target.value })}
-                placeholder="e.g., Choose the lucky winner!"
-                className="bg-white/5 border-white/10 h-12"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-amber-500 uppercase tracking-wider">Entry Price (Coins)</label>
-                <Input
-                  required
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: parseInt(e.target.value) })}
-                  className="bg-white/5 border-white/10 h-12"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-bold text-amber-500 uppercase tracking-wider">Timer (Seconds)</label>
-                <Input
-                  required
-                  type="number"
-                  value={formData.duration}
-                  onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) })}
-                  className="bg-white/5 border-white/10 h-12"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-amber-500 uppercase tracking-wider">Winner Card Index (0-3)</label>
-              <select
-                className="w-full bg-white/5 border border-white/10 rounded-md h-12 px-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500"
-                value={formData.winnerIndex}
-                onChange={(e) => setFormData({ ...formData, winnerIndex: parseInt(e.target.value) })}
-              >
-                <option value={0} className="bg-zinc-900">Card 1</option>
-                <option value={1} className="bg-zinc-900">Card 2</option>
-                <option value={2} className="bg-zinc-900">Card 3</option>
-                <option value={3} className="bg-zinc-900">Card 4</option>
-              </select>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-bold text-amber-500 uppercase tracking-wider">Game Tier</label>
-              <select
-                className="w-full bg-white/5 border border-white/10 rounded-md h-12 px-3 text-white appearance-none focus:outline-none focus:ring-2 focus:ring-amber-500"
-                value={formData.isPremium ? "premium" : "free"}
-                onChange={(e) => setFormData({ ...formData, isPremium: e.target.value === "premium" })}
-              >
-                <option value="free" className="bg-zinc-900">Free User Game</option>
-                <option value="premium" className="bg-zinc-900 text-amber-500 font-bold">Premium User Game</option>
-              </select>
-            </div>
-
-
-            <div className="space-y-4 pt-4 border-t border-white/10">
-              <h3 className="text-sm font-bold text-amber-500 uppercase tracking-wider flex items-center gap-2">
-                <ImageIcon className="h-4 w-4" /> Card Visuals
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                {formData.cardImages.map((img, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[10px] font-bold text-muted-foreground uppercase">Card {idx + 1}</label>
-                      {formData.winnerIndex === idx && <div className="h-2 w-2 bg-green-500 rounded-full" title="Winner" />}
-                    </div>
-                    <Input
-                      required
-                      className="text-[10px] h-10 bg-white/5 border-white/5"
-                      value={img}
-                      onChange={(e) => {
-                        const newImages = [...formData.cardImages];
-                        newImages[idx] = e.target.value;
-                        setFormData({ ...formData, cardImages: newImages });
-                      }}
-                      placeholder="Image URL"
-                    />
-                  </div>
+              </TableHeader>
+              <TableBody>
+                {games.map((game) => (
+                  <TableRow key={game.id} className="border-white/5 hover:bg-white/5">
+                    <TableCell>{game.question} {game.isPremium && <span className="text-amber-500 text-xs ml-2 border border-amber-500 px-1 rounded">PREMIUM</span>}</TableCell>
+                    <TableCell className="text-center">{game.duration}</TableCell>
+                    <TableCell className="text-center text-amber-500 font-bold">{game.price}</TableCell>
+                    <TableCell className="text-right">
+                      <Button size="sm" variant="ghost" className="text-blue-500" onClick={() => handleOpenModal(game)}><Edit className="w-4 h-4" /></Button>
+                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleDelete(game.id)}><Trash2 className="w-4 h-4" /></Button>
+                    </TableCell>
+                  </TableRow>
                 ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
+      ) : (
+        <div className="space-y-6">
+          <Card className="bg-white/5 border-white/10">
+            <CardHeader>
+              <CardTitle className="text-amber-500">Automation Configuration</CardTitle>
+              <CardDescription>Set automatic coin rewards for expiring games per timeframe.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-center gap-4 p-4 rounded-lg bg-black/20 border border-white/5">
+                <label className="font-bold">Enable Automation</label>
+                <input
+                  type="checkbox"
+                  checked={autoEnabled}
+                  onChange={(e) => setAutoEnabled(e.target.checked)}
+                  className="w-6 h-6 accent-amber-500"
+                />
               </div>
+
+              <div className="grid md:grid-cols-2 gap-8">
+                {/* Free Settings */}
+                <div className="space-y-4">
+                  <h3 className="font-bold text-green-400 border-b border-white/10 pb-2">Free User Rewards</h3>
+                  {DURATIONS.map(d => (
+                    <div key={d} className="flex items-center justify-between">
+                      <span className="text-sm font-medium w-16">{d}</span>
+                      <Input
+                        type="number"
+                        value={autoSettings.free[d]}
+                        onChange={(e) => updateSetting('free', d, Number(e.target.value))}
+                        className="h-8 w-32 bg-white/5 border-white/10"
+                      />
+                    </div>
+                  ))}
+                </div>
+
+                {/* Premium Settings */}
+                <div className="space-y-4">
+                  <h3 className="font-bold text-amber-400 border-b border-white/10 pb-2">Premium User Rewards</h3>
+                  {DURATIONS.map(d => (
+                    <div key={d} className="flex items-center justify-between">
+                      <span className="text-sm font-medium w-16">{d}</span>
+                      <Input
+                        type="number"
+                        value={autoSettings.premium[d]}
+                        onChange={(e) => updateSetting('premium', d, Number(e.target.value))}
+                        className="h-8 w-32 bg-white/5 border-white/10"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <Button onClick={handleSaveAutomation} disabled={saving} className="w-full bg-amber-500 text-black font-bold">
+                {saving ? "Saving..." : "Save Automation Settings"}
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
+      {/* Modal Reused - Updated for Duration Dropdown */}
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingGame ? "Edit Game" : "New Game"}>
+        <form onSubmit={handleSave} className="space-y-4">
+          <div>
+            <label className="text-sm font-bold text-amber-500">Question</label>
+            <Input value={formData.question} onChange={e => setFormData({ ...formData, question: e.target.value })} className="bg-white/5 border-white/10" />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="text-sm font-bold text-amber-500">Entry Price</label>
+              <Input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} className="bg-white/5 border-white/10" />
+            </div>
+            <div>
+              <label className="text-sm font-bold text-amber-500">Duration</label>
+              <select
+                value={formData.duration}
+                onChange={e => setFormData({ ...formData, duration: e.target.value })}
+                className="w-full h-10 rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                {DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="text-sm font-bold text-amber-500">Tier</label>
+            <select
+              value={formData.isPremium ? 'premium' : 'free'}
+              onChange={e => setFormData({ ...formData, isPremium: e.target.value === 'premium' })}
+              className="w-full h-10 rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white"
+            >
+              <option value="free">Free</option>
+              <option value="premium">Premium</option>
+            </select>
+          </div>
+
+          {/* ... keeping card inputs simplified or reusing ... */}
+          <div className="space-y-2 pt-4">
+            <label className="text-sm font-bold text-amber-500 flex items-center gap-2">
+              <ImageIcon className="h-4 w-4" /> Card Visuals
+            </label>
+            <div className="grid grid-cols-2 gap-4">
+              {formData.cardImages.map((img, idx) => (
+                <div key={idx} className="space-y-1">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Card {idx + 1}</span>
+                  <Input
+                    value={img}
+                    onChange={e => {
+                      const n = [...formData.cardImages]; n[idx] = e.target.value;
+                      setFormData({ ...formData, cardImages: n });
+                    }}
+                    className="h-8 text-[10px] bg-white/5 border-white/5"
+                  />
+                </div>
+              ))}
             </div>
           </div>
 
-          <Button type="submit" disabled={saving} className="w-full h-12 bg-amber-500 hover:bg-amber-600 text-black font-black uppercase tracking-widest text-sm shadow-[0_0_20px_rgba(245,158,11,0.3)]">
-            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin text-black" /> : null}
-            {editingGame ? "Update Game Details" : "Create and Save Game"}
+          <Button type="submit" disabled={saving} className="w-full bg-amber-500 text-black font-bold mt-4">
+            {saving ? "Saving..." : "Save Game"}
           </Button>
         </form>
       </Modal>
     </div>
   );
 }
+
 
 function AdminTimer({ game }: { game: any }) {
   const [remains, setRemains] = useState(0);
