@@ -1,7 +1,19 @@
 
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { getRandomQuestions } from "./questionBank";
 
-const apiKey = process.env.GEMINI_API_KEY;
+// ... (existing code)
+
+  } catch (error: any) {
+  console.error("Gemini Generation Error:", error);
+
+  // Fallback/Mock Mode if API fails
+  console.warn("⚠️ Switching to Mock/Fallback Mode due to AI Error.");
+
+  // Use Real Question Bank
+  return getRandomQuestions(count, topic);
+}
+}
+
 
 if (!apiKey) {
   console.warn("GEMINI_API_KEY is missing. Quiz generation will fail.");
