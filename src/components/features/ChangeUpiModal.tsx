@@ -1,9 +1,8 @@
 
 import { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Loader2, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { doc, updateDoc, Timestamp } from "firebase/firestore";
@@ -60,27 +59,23 @@ export function ChangeUpiModal({ isOpen, onClose, currentUpi }: ChangeUpiModalPr
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="bg-[#0a0a0a] border-white/10 sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-amber-500">
-            <Clock className="h-5 w-5" /> Change UPI ID
-          </DialogTitle>
-          <DialogDescription>
-            Security Policy: Payment details updates take <strong>15 Days</strong> to process automatically.
-          </DialogDescription>
-        </DialogHeader>
+    <Modal isOpen={isOpen} onClose={onClose} title="Change UPI ID">
+      <div className="space-y-4">
+        <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-md flex items-center gap-2 text-sm text-amber-500">
+          <Clock className="h-4 w-4" />
+          <span>Security Policy: Updates take <strong>15 Days</strong>.</span>
+        </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label>Current UPI ID</Label>
+            <label className="text-sm font-medium">Current UPI ID</label>
             <div className="p-3 bg-white/5 rounded-md text-sm text-muted-foreground font-mono">
               {currentUpi || "Not Set"}
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>New UPI ID</Label>
+            <label className="text-sm font-medium">New UPI ID</label>
             <Input
               value={newUpi}
               onChange={(e) => setNewUpi(e.target.value)}
@@ -90,10 +85,10 @@ export function ChangeUpiModal({ isOpen, onClose, currentUpi }: ChangeUpiModalPr
             />
           </div>
 
-          <div className="bg-amber-500/10 border border-amber-500/20 p-3 rounded-md flex items-start gap-3">
+          <div className="bg-white/5 border border-white/5 p-3 rounded-md flex items-start gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-500 shrink-0 mt-0.5" />
-            <div className="text-xs text-amber-500/90">
-              This request will remain <strong>Pending</strong> for 15 days. Admins can verify and approve it earlier if needed.
+            <div className="text-xs text-muted-foreground">
+              This request will remain <strong>Pending</strong> for 15 days. Admins can verify and approve it earlier.
             </div>
           </div>
 
@@ -106,7 +101,7 @@ export function ChangeUpiModal({ isOpen, onClose, currentUpi }: ChangeUpiModalPr
             </Button>
           </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </Modal>
   );
 }
