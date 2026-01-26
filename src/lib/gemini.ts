@@ -1,19 +1,7 @@
-
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import { getRandomQuestions } from "./questionBank";
 
-// ... (existing code)
-
-  } catch (error: any) {
-  console.error("Gemini Generation Error:", error);
-
-  // Fallback/Mock Mode if API fails
-  console.warn("⚠️ Switching to Mock/Fallback Mode due to AI Error.");
-
-  // Use Real Question Bank
-  return getRandomQuestions(count, topic);
-}
-}
-
+const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
   console.warn("GEMINI_API_KEY is missing. Quiz generation will fail.");
@@ -22,11 +10,11 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-
-
 export async function generateQuizQuestions(topic: string, count: number): Promise<any[]> {
+  // If no API key, go straight to fallback
   if (!apiKey) {
-    throw new Error("GEMINI_API_KEY is not configured on the server.");
+    console.warn("No API Key configured, using Question Bank.");
+    return getRandomQuestions(count, topic);
   }
 
   try {
@@ -71,18 +59,7 @@ export async function generateQuizQuestions(topic: string, count: number): Promi
     // Fallback/Mock Mode if API fails
     console.warn("⚠️ Switching to Mock/Fallback Mode due to AI Error.");
 
-    const mockQuestions = Array(count).fill(null).map((_, i) => ({
-      text: `(Sample) What is a key fact about ${topic}? (Q${i + 1})`,
-      options: [
-        `Fact A about ${topic}`,
-        `Fact B about ${topic}`,
-        `Fact C about ${topic}`,
-        `Fact D about ${topic}`
-      ],
-      correctAnswer: 0
-    }));
-
-    return mockQuestions;
+    // Use Real Question Bank
+    return getRandomQuestions(count, topic);
   }
 }
-
