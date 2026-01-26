@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
+import { getRandomTheme } from "@/lib/gameThemes";
 
 export const maxDuration = 60;
 
@@ -15,12 +16,6 @@ const DURATIONS_MAP: Record<string, number> = {
   "30m": 1800
 };
 
-const DEFAULT_IMAGES = [
-  "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop"
-];
 
 export async function GET(req: NextRequest) {
   // Security Check
@@ -58,19 +53,23 @@ export async function GET(req: NextRequest) {
       const durationSeconds = DURATIONS_MAP[durationLabel];
       if (!durationSeconds || coinValue <= 0) return;
 
+      const theme = getRandomTheme();
+      const randomQuestion = theme.questionTemplates[Math.floor(Math.random() * theme.questionTemplates.length)];
+
       const gameData = {
-        question: `Lucky Winner (${durationLabel})`,
-        price: coinValue, // Using 'price' to store the reward/value as per existing model
+        question: `${randomQuestion} (${durationLabel})`,
+        price: coinValue,
         duration: durationSeconds,
         winnerIndex: Math.floor(Math.random() * 4),
         status: "active",
         isPremium,
-        cardImages: DEFAULT_IMAGES,
-        startTime: now, // Start immediately
+        cardImages: theme.cards, // Use themed images
+        startTime: now,
         createdAt: now,
         updatedAt: now,
         generatedBy: "AI_CRON",
-        expiryLabel: durationLabel
+        expiryLabel: durationLabel,
+        themeId: theme.id
       };
 
       const ref = await db.collection("cardGames").add(gameData);
