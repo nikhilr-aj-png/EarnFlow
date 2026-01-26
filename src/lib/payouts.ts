@@ -25,9 +25,15 @@ export async function requestWithdrawal(userId: string, userEmail: string, amoun
 
     // 2. Deduct coins from user
     const userRef = doc(db, "users", userId);
-    await updateDoc(userRef, {
+
+    // Save UPI if not already saved (Locking Logic)
+    const updateData: any = {
       coins: increment(-(amount * 100))
-    });
+    };
+    if (!userData.savedUpi && method === 'UPI') {
+      updateData.savedUpi = details;
+    }
+    await updateDoc(userRef, updateData);
 
     // 3. Create the request
     const docRef = await addDoc(collection(db, "withdrawals"), {
@@ -36,9 +42,13 @@ export async function requestWithdrawal(userId: string, userEmail: string, amoun
       amount,
       method,
       details,
-      status: "pending",
+      status: "pending", // Always pending (Manual Approval)
       createdAt: serverTimestamp(),
     });
+
+
+
+
 
     return { success: true, id: docRef.id };
   } catch (error) {

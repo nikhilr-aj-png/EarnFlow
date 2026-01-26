@@ -6,6 +6,8 @@ import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { Loader2, CheckCircle, Clock, Mail, User as UserIcon, CreditCard, ArrowDownLeft, ShieldCheck } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
+
 
 export default function AdminPaymentsPage() {
   const [razorpayTransactions, setRazorpayTransactions] = useState<any[]>([]);
@@ -16,11 +18,22 @@ export default function AdminPaymentsPage() {
 
   useEffect(() => {
     setMounted(true);
+
+    // Safety Timeout: Force stop loading after 5 seconds if Firestore hangs
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 5000);
+
     // 1. Listen to Razorpay Transactions
     const qTrans = query(collection(db, "transactions"), orderBy("createdAt", "desc"));
     const unsubTrans = onSnapshot(qTrans, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setRazorpayTransactions(docs);
+      setLoading(false);
+      clearTimeout(safetyTimer);
+    }, (error) => {
+      console.error("Error fetching transactions:", error);
+      toast.error("Error loading transactions. Check console.");
       setLoading(false);
     });
 
@@ -29,13 +42,17 @@ export default function AdminPaymentsPage() {
     const unsubManual = onSnapshot(qManual, (snapshot) => {
       const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       setManualRequests(docs);
+    }, (error) => {
+      console.error("Manual requests error:", error);
     });
 
     return () => {
       unsubTrans();
       unsubManual();
+      clearTimeout(safetyTimer);
     };
   }, []);
+
 
   if (loading) {
     return (

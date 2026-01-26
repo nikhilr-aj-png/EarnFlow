@@ -15,6 +15,7 @@ export default function WithdrawalsPage() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const fetchWithdrawals = async () => {
+
     try {
       const q = query(collection(db, "withdrawals"), orderBy("createdAt", "desc"));
       const querySnapshot = await getDocs(q);
@@ -31,6 +32,7 @@ export default function WithdrawalsPage() {
   useEffect(() => {
     fetchWithdrawals();
   }, []);
+
 
   const handleStatusUpdate = async (id: string, newStatus: "successful" | "rejected") => {
     setActionLoading(id);
@@ -79,6 +81,7 @@ export default function WithdrawalsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Withdrawal Requests</h1>
       </div>
+
 
       <div className="rounded-md border border-white/10 bg-card overflow-x-auto">
         <Table>

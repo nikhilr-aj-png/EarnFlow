@@ -62,10 +62,24 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // Transactions
+    match /transactions/{transactionId} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin(); // Mostly server-side or admin
+      allow update, delete: if isAdmin();
+    }
+
+    // Payment Requests (Legacy Manual)
+    match /paymentRequests/{requestId} {
+      allow read, write: if isAdmin();
+    }
+
     // Verification Codes
     match /verification_codes/{email} {
       allow read, write: if true; 
     }
+
+
   }
 }
 
