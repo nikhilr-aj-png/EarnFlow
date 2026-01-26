@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, XCircle, ArrowRight, BrainCircuit, Timer } from "lucide-react";
@@ -26,6 +26,24 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [], totalRe
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(10); // 10 Seconds Limit
+
+  useEffect(() => {
+    if (!isOpen || showResult || questions.length === 0) return;
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setShowResult(true); // Auto-finish
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [isOpen, showResult, questions.length]);
+
 
   // If no questions, just complete with 0
   if (questions.length === 0 && isOpen) {
@@ -74,8 +92,13 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [], totalRe
               className="space-y-6"
             >
               <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
-                <span>Value: <span className="text-amber-500 font-bold">{coinsPerQuestion}</span> coins/question</span>
-                <span>Potential: <span className="text-amber-500 font-bold">{totalReward}</span> coins</span>
+                <div className="flex items-center gap-2">
+                  <Timer className="w-4 h-4 text-amber-500" />
+                  <span className={cn("font-bold text-lg", timeLeft <= 5 ? "text-red-500 blink-animation" : "text-white")}>
+                    00:{timeLeft.toString().padStart(2, '0')}
+                  </span>
+                </div>
+                <span>Potential: <span className="text-amber-500 font-bold">{totalReward}</span></span>
               </div>
               <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-3">
                 <BrainCircuit className="h-5 w-5 text-amber-500" />
@@ -152,15 +175,6 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [], totalRe
               </Button>
 
 
-              {score < questions.length && (
-                <Button
-                  variant="ghost"
-                  className="w-full text-muted-foreground hover:text-white"
-                  onClick={handleReset}
-                >
-                  Retry for Higher Score
-                </Button>
-              )}
             </motion.div>
           )}
         </AnimatePresence>
