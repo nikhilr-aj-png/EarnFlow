@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, doc, updateDoc, orderBy, deleteDoc } from "firebase/firestore";
+import { collection, getDocs, query, doc, updateDoc, orderBy, deleteDoc, deleteField } from "firebase/firestore";
 import { Loader2, Search, ShieldAlert, ShieldCheck, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -115,7 +115,6 @@ export default function UserManagementPage() {
 
     if (!confirm(`Approve UPI Change to ${newUpi}?`)) return;
     try {
-      const { deleteField } = await import("firebase/firestore");
       await updateDoc(doc(db, "users", userId), {
         savedUpi: newUpi,
         upiChangeRequest: deleteField()
