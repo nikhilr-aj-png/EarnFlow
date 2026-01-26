@@ -47,6 +47,23 @@ export async function POST(req: NextRequest) {
       }
     });
 
+    // 3. Delete Expired Tasks (Admin & Auto Generated)
+    const taskSnap = await db.collection("tasks").get();
+    let deletedTasks = 0;
+
+    // Process task deletions in a separate batch if main batch gets too large (Firestore limit 500)
+    // For simplicity here, same batch, but in real app handle limits.
+
+    taskSnap.docs.forEach(doc => {
+      const t = doc.data();
+      if (t.expiresAt && t.expiresAt.seconds < now.seconds) {
+        batch.delete(doc.ref);
+        deletedTasks++;
+        batchCount++;
+      }
+    });
+
+
     if (batchCount > 0) {
       await batch.commit();
     }
@@ -55,7 +72,8 @@ export async function POST(req: NextRequest) {
       success: true,
       deletedGames,
       deletedEntries,
-      message: `Cleanup Complete. Deleted ${deletedGames} games and ${deletedEntries} orphaned entries.`
+      deletedTasks,
+      message: `Cleanup Complete. Deleted ${deletedGames} games, ${deletedEntries} bets, and ${deletedTasks} expired tasks.`
     });
 
   } catch (error: any) {
