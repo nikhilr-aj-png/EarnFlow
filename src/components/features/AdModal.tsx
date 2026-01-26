@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Play, SkipForward, Timer, Sparkles, CheckCircle2 } from "lucide-react";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 
 interface AdModalProps {
   isOpen: boolean;
@@ -16,29 +18,27 @@ export function AdModal({ isOpen, onClose, onComplete }: AdModalProps) {
   const [canSkip, setCanSkip] = useState(false);
   const [wasAdClicked, setWasAdClicked] = useState(false);
 
-  // 👉 PASTE YOUR PROPELLERADS DIRECT LINK HERE
-  const PROPELLER_DIRECT_LINK = "https://example.com/your-direct-link";
+  // ... inside component ...
+  const [directLink, setDirectLink] = useState("");
 
   useEffect(() => {
-    if (!isOpen) {
-      setTimeLeft(10);
-      setCanSkip(false);
-      setWasAdClicked(false);
-      return;
-    }
-
-    if (timeLeft > 0) {
-      const timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-      return () => clearInterval(timer);
-    } else {
-      setCanSkip(true);
-    }
-  }, [isOpen, timeLeft]);
+    // Fetch Ad Settings
+    const fetchAdSettings = async () => {
+      try {
+        const snap = await getDoc(doc(db, "settings", "ads"));
+        if (snap.exists() && snap.data().monetagDirectLink) {
+          setDirectLink(snap.data().monetagDirectLink);
+        }
+      } catch (error) {
+        console.error("Failed to load ad link:", error);
+      }
+    };
+    fetchAdSettings();
+  }, [isOpen]); // Re-check on open
 
   const handleAdClick = () => {
-    window.open(PROPELLER_DIRECT_LINK, "_blank");
+    const url = directLink || "https://monetag.com"; // Fallback
+    window.open(url, "_blank");
     setWasAdClicked(true);
   };
 
