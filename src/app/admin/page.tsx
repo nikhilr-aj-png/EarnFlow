@@ -15,6 +15,7 @@ export default function AdminDashboard() {
     pending: 0,
     tasks: 0,
     premiumRevenue: 0,
+    upiRequests: 0,
   });
   const [recentRequests, setRecentRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,10 +33,13 @@ export default function AdminDashboard() {
         approvedSnap.forEach(doc => totalPayouts += doc.data().amount);
         successfulSnap.forEach(doc => totalPayouts += doc.data().amount);
 
-        // Calculate Premium Revenue
+        // Calculate Premium Revenue & UPI Requests
         let premiumCount = 0;
+        let upiCount = 0;
         usersSnap.forEach(doc => {
-          if (doc.data().isPremium) premiumCount++;
+          const data = doc.data();
+          if (data.isPremium) premiumCount++;
+          if (data.upiChangeRequest?.status === 'pending') upiCount++;
         });
         const premiumRevenue = premiumCount * 99;
 
@@ -45,6 +49,7 @@ export default function AdminDashboard() {
           pending: pendingSnap.size,
           payouts: totalPayouts,
           premiumRevenue,
+          upiRequests: upiCount,
         });
 
 
@@ -99,6 +104,16 @@ export default function AdminDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{stats.pending}</div>
             <p className="text-xs text-muted-foreground">Action required</p>
+          </CardContent>
+        </Card>
+        <Card className="border-white/10 bg-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">UPI Requests</CardTitle>
+            <AlertCircle className="h-4 w-4 text-amber-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.upiRequests}</div>
+            <p className="text-xs text-muted-foreground">Pending Approval</p>
           </CardContent>
         </Card>
         <Card className="border-white/10 bg-card">

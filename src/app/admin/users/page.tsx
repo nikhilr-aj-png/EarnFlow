@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, query, doc, updateDoc, orderBy, deleteDoc, deleteField } from "firebase/firestore";
-import { Loader2, Search, ShieldAlert, ShieldCheck, Trash2, AlertTriangle } from "lucide-react";
+import { Loader2, Search, ShieldAlert, ShieldCheck, Trash2, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -95,23 +95,36 @@ export default function UserManagementPage() {
   const handleDeleteUser = async (id: string, name: string) => {
     if (!confirm(`Are you sure you want to PERMANENTLY delete user "${name}"? This action cannot be undone.`)) return;
 
-    // Optimistic delete
+    // Optimistic delete UI update
     const prevUsers = [...users];
     setUsers(users.filter(u => u.id !== id));
 
     try {
-      await deleteDoc(doc(db, "users", id));
-      toast.success("User deleted successfully!");
+      const res = await fetch('/api/admin/users/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: id }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Deletion failed");
+
+      toast.success("User deleted from System & Auth!");
       setIsModalOpen(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      toast.error("Failed to delete user.");
-      setUsers(prevUsers); // Revert
+      toast.error(`Failed to delete: ${err.message}`);
+      setUsers(prevUsers); // Revert UI
     }
   };
 
   const handleApproveUpi = async (userId: string, newUpi: string) => {
     // ... logic is already there in file, just need to close the function above
+
+    if (!newUpi) {
+      toast.error("Cannot Approve: Request is missing UPI ID. Please ask user to request again.");
+      return;
+    }
 
     if (!confirm(`Approve UPI Change to ${newUpi}?`)) return;
     try {
@@ -123,8 +136,17 @@ export default function UserManagementPage() {
       setIsModalOpen(false);
       // Update local state
       setUsers(users.map(u => u.id === userId ? { ...u, savedUpi: newUpi, upiChangeRequest: null } : u));
-    } catch (e) {
-      toast.error("Failed to approve");
+    } catch (e: any) {
+      const isNotFound = e.code === 'not-found' || e.message?.includes('No document to update');
+
+      if (!isNotFound) {
+        console.error(e);
+        toast.error("Failed to approve");
+      } else {
+        toast.warning("User was already deleted. Removing from list.");
+        setUsers(prev => prev.filter(u => u.id !== userId));
+        setIsModalOpen(false);
+      }
     }
   };
 
@@ -134,6 +156,7 @@ export default function UserManagementPage() {
       u.referralCode?.toLowerCase().includes(search.toLowerCase());
 
     if (filter === "admins") return matchesSearch && u.isAdmin;
+    if (filter === "requests") return matchesSearch && u.upiChangeRequest?.status === 'pending';
 
     // For other tabs, EXCLUDE admins
     if (u.isAdmin) return false;
@@ -158,6 +181,14 @@ export default function UserManagementPage() {
           <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")} size="sm">All</Button>
           <Button variant={filter === "premium" ? "default" : "outline"} onClick={() => setFilter("premium")} size="sm" className={filter === "premium" ? "bg-amber-500 hover:bg-amber-600" : ""}>Premium</Button>
           <Button variant={filter === "free" ? "default" : "outline"} onClick={() => setFilter("free")} size="sm">Free</Button>
+          <Button variant={filter === "requests" ? "default" : "outline"} onClick={() => setFilter("requests")} size="sm" className={filter === "requests" ? "bg-amber-500 text-black font-bold" : "relative"} >
+            Requests
+            {users.filter(u => u.upiChangeRequest?.status === 'pending').length > 0 && (
+              <span className="ml-2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full">
+                {users.filter(u => u.upiChangeRequest?.status === 'pending').length}
+              </span>
+            )}
+          </Button>
           <Button variant={filter === "admins" ? "default" : "outline"} onClick={() => setFilter("admins")} size="sm" className={filter === "admins" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20" : "text-red-500 hover:bg-red-500/5"}>Admins</Button>
 
         </div>
@@ -297,8 +328,8 @@ export default function UserManagementPage() {
                       <div className="font-mono text-white">{selectedUser.upiChangeRequest.newUpiId}</div>
                     </div>
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    Auto-Update: {new Date(selectedUser.upiChangeRequest.validAfter?.seconds * 1000).toLocaleDateString()}
+                  <div className="text-[10px] text-muted-foreground flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> Waiting for your approval
                   </div>
                   <Button
                     size="sm"

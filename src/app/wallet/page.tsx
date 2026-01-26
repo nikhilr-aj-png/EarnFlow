@@ -202,15 +202,16 @@ export default function WalletPage() {
                       variant="outline"
                       onClick={() => handleRequestUpiChange()}
                       className="border-white/10 hover:bg-white/5"
+                      disabled={userData?.upiChangeRequest?.status === 'pending'}
                     >
-                      Change
+                      {userData?.upiChangeRequest?.status === 'pending' ? "Pending..." : "Change"}
                     </Button>
                   )}
                 </div>
                 {userData?.upiChangeRequest && (
                   <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md text-xs text-blue-400">
                     Requesting change to: <span className="text-white font-mono">{userData.upiChangeRequest.newUpiId}</span><br />
-                    <span className="font-bold">Auto-update after: {new Date(userData.upiChangeRequest.validAfter?.seconds * 1000).toLocaleDateString()}</span>
+                    <span className="font-bold flex items-center gap-1 mt-1"><Loader2 className="h-3 w-3 animate-spin" /> Awaiting Admin Approval</span>
                   </div>
                 )}
 
