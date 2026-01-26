@@ -290,6 +290,30 @@ export default function AdminGamesPage() {
               <Button onClick={handleSaveAutomation} disabled={saving} className="w-full bg-amber-500 text-black font-bold">
                 {saving ? "Saving..." : "Save Automation Settings"}
               </Button>
+
+              <div className="pt-8 border-t border-white/10">
+                <h3 className="font-bold text-lg mb-4 text-blue-400">Manual Override</h3>
+                <p className="text-muted-foreground text-sm mb-4">Force run the automation now to generate games immediately based on above settings.</p>
+                <Button
+                  variant="outline"
+                  className="w-full border-blue-500 text-blue-400 hover:bg-blue-500/10 hover:text-blue-300"
+                  onClick={async () => {
+                    setSaving(true);
+                    try {
+                      const res = await fetch('/api/cron/daily-game?key=' + process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
+                      if (res.ok) toast.success("Automation Ran Successfully!");
+                      else toast.error("Failed to run automation");
+                    } catch (e) {
+                      toast.error("Error running automation");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                >
+                  <Play className="mr-2 h-4 w-4" /> Run Automation Now (Generate Games)
+                </Button>
+              </div>
+
             </CardContent>
           </Card>
         </div>
