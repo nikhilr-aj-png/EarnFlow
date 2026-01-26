@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import { getRandomTheme } from "@/lib/gameThemes";
+import { generateCardQuestion } from "@/lib/gemini";
 
 export const maxDuration = 60;
 
@@ -101,11 +102,23 @@ export async function GET(req: NextRequest) {
       const durationSeconds = DURATIONS_MAP[durationLabel];
       if (!durationSeconds || coinValue <= 0) return;
 
+      import { getRandomTheme } from "@/lib/gameThemes"; // Should be already imported
+      // Add import for generateCardQuestion at top, but for now assuming I can add it or it's available. 
+      // Wait, I need to add the import to 'src/app/api/cron/daily-game/route.ts' FIRST.
+      // I will do two edits. One for logic, one for import.
+
+      // Logic Block:
       const theme = getRandomTheme();
-      const randomQuestion = theme.questionTemplates[Math.floor(Math.random() * theme.questionTemplates.length)];
+      // Try AI Generation with new Key
+      let questionText = theme.questionTemplates[Math.floor(Math.random() * theme.questionTemplates.length)];
+
+      try {
+        const aiQ = await generateCardQuestion(theme.name); // Need to import this
+        if (aiQ) questionText = `${aiQ}`;
+      } catch (e) { }
 
       const gameData = {
-        question: `${randomQuestion} (${durationLabel})`,
+        question: `${questionText} (${durationLabel})`,
         price: coinValue,
         duration: durationSeconds,
         winnerIndex: Math.floor(Math.random() * 4),

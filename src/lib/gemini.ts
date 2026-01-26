@@ -56,10 +56,26 @@ export async function generateQuizQuestions(topic: string, count: number): Promi
   } catch (error: any) {
     console.error("Gemini Generation Error:", error);
 
-    // Fallback/Mock Mode if API fails
-    console.warn("⚠️ Switching to Mock/Fallback Mode due to AI Error.");
-
     // Use Real Question Bank
     return getRandomQuestions(count, topic);
+  }
+}
+
+export async function generateCardQuestion(theme: string): Promise<string> {
+  const customKey = process.env.CARDS_API_KEY;
+  if (!customKey) return ""; // Fallback to static
+
+  try {
+    const genAI_Cards = new GoogleGenerativeAI(customKey);
+    const model_Cards = genAI_Cards.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+    const prompt = `Generate a short 4-word question for a "Choose the Winner" card game. Theme: ${theme}. Return ONLY the question text. Example: "Which Punk is Rare?"`;
+
+    const result = await model_Cards.generateContent(prompt);
+    const text = (await result.response).text();
+    return text.trim().replace(/['"]/g, "");
+  } catch (e) {
+    console.error("Card AI Error:", e);
+    return "";
   }
 }
