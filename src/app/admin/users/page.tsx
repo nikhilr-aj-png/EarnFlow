@@ -282,6 +282,34 @@ export default function UserManagementPage() {
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Email Address</p>
                 <p className="font-medium">{selectedUser.email}</p>
               </div>
+
+              {selectedUser.upiChangeRequest?.status === 'pending' && (
+                <div className="col-span-2 p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl space-y-3">
+                  <div className="flex items-center gap-2 text-amber-500 font-bold text-sm">
+                    <AlertTriangle className="h-4 w-4" /> Pending UPI Change
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-muted-foreground">Current:</span>
+                      <div className="font-mono">{selectedUser.savedUpi || "None"}</div>
+                    </div>
+                    <div>
+                      <span className="text-muted-foreground">Requested:</span>
+                      <div className="font-mono text-white">{selectedUser.upiChangeRequest.newUpiId}</div>
+                    </div>
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">
+                    Auto-Update: {new Date(selectedUser.upiChangeRequest.validAfter?.seconds * 1000).toLocaleDateString()}
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={() => handleApproveUpi(selectedUser.id, selectedUser.upiChangeRequest.newUpiId)}
+                    className="w-full bg-amber-500 text-black font-bold hover:bg-amber-600"
+                  >
+                    Approve Change Now (Manual)
+                  </Button>
+                </div>
+              )}
             </div>
 
             <form onSubmit={handleUpdateCoins} className="space-y-4 pt-4 border-t border-white/5">
