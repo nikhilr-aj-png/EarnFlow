@@ -323,6 +323,27 @@ export default function AdminGamesPage() {
                 >
                   <Play className="mr-2 h-4 w-4" /> Run Automation Now (Generate Games)
                 </Button>
+
+                <Button
+                  variant="outline"
+                  className="w-full mt-4 border-red-500 text-red-500 hover:bg-red-500/10 hover:text-red-400"
+                  onClick={async () => {
+                    if (!confirm("Are you sure? This will delete OLD expired games and orphaned data.")) return;
+                    setSaving(true);
+                    try {
+                      const res = await fetch('/api/admin/cleanup', { method: 'POST' });
+                      const data = await res.json();
+                      if (res.ok) toast.success(data.message);
+                      else toast.error("Cleanup Failed");
+                    } catch (e) {
+                      toast.error("Error during cleanup");
+                    } finally {
+                      setSaving(false);
+                    }
+                  }}
+                >
+                  <Trash2 className="mr-2 h-4 w-4" /> Clean Database (Remove Old Data)
+                </Button>
               </div>
 
             </CardContent>
