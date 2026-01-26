@@ -48,17 +48,33 @@ export async function POST(req: NextRequest) {
     });
 
     // 3. Delete Expired Tasks (Admin & Auto Generated)
+    // 3. Delete Expired Tasks (Admin & Auto Generated)
     const taskSnap = await db.collection("tasks").get();
     let deletedTasks = 0;
-
-    // Process task deletions in a separate batch if main batch gets too large (Firestore limit 500)
-    // For simplicity here, same batch, but in real app handle limits.
+    const activeTaskIds = new Set<string>();
 
     taskSnap.docs.forEach(doc => {
       const t = doc.data();
+      // If expiresAt exists AND is past, delete. 
+      // If expiresAt is null/undefined, it's Permanent -> Keep it.
       if (t.expiresAt && t.expiresAt.seconds < now.seconds) {
         batch.delete(doc.ref);
         deletedTasks++;
+        batchCount++;
+      } else {
+        activeTaskIds.add(doc.id);
+      }
+    });
+
+    // 4. Delete Orphaned Task Submissions
+    const subSnap = await db.collection("taskSubmissions").get();
+    let deletedSubs = 0;
+
+    subSnap.docs.forEach(doc => {
+      const data = doc.data();
+      if (!activeTaskIds.has(data.taskId)) {
+        batch.delete(doc.ref);
+        deletedSubs++;
         batchCount++;
       }
     });
@@ -73,7 +89,9 @@ export async function POST(req: NextRequest) {
       deletedGames,
       deletedEntries,
       deletedTasks,
-      message: `Cleanup Complete. Deleted ${deletedGames} games, ${deletedEntries} bets, and ${deletedTasks} expired tasks.`
+      deletedTasks,
+      deletedSubs,
+      message: `Cleanup Complete. Deleted ${deletedGames} games, ${deletedEntries} bets, ${deletedTasks} tasks, and ${deletedSubs} submissions.`
     });
 
   } catch (error: any) {
