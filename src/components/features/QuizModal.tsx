@@ -146,14 +146,11 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [], totalRe
                   onComplete(score);
                   onClose();
                 }}
-                disabled={earnedCoins === 0 && score === 0} // Optional: force retry if 0? No, let them claim 0 or complete task.
-              // Actually if score is 0, earnedCoins is 0. 
-              // If we allow 0 coins task completion, it marks task as done.
-              // User probably wants to retry if score is low.
-              // Let's add a Retry button if score < questions.length (perfect score)
+              // Always allow completion, even with 0 score
               >
-                {earnedCoins > 0 ? "Claim My Coins" : "Complete Task"} <ArrowRight className="ml-2 h-4 w-4" />
+                {earnedCoins > 0 ? `Claim ${earnedCoins} Coins` : "Complete Task (0 Coins)"} <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
+
 
               {score < questions.length && (
                 <Button
