@@ -97,8 +97,17 @@ export async function GET(req: NextRequest) {
 
     const results = await Promise.all([...freePromises, ...premiumPromises]);
     const successCount = results.filter(r => r.success).length;
+    const failures = results.filter(r => !r.success);
+    const errorMessages = failures.map(r => r.error);
 
-    return NextResponse.json({ success: true, results, count: successCount });
+    return NextResponse.json({
+      success: true,
+      results,
+      count: successCount,
+      failureCount: failures.length,
+      errors: errorMessages
+    });
+
 
 
   } catch (error: any) {

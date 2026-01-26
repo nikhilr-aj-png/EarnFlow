@@ -104,10 +104,18 @@ export default function AutomationSettingsPage() {
       }
 
       if (result.success) {
-        toast.success(`Success! Generated ${result.count} tasks.`);
+        if (result.count > 0) {
+          toast.success(`Success! Generated ${result.count} tasks.`);
+        } else if (result.failureCount > 0) {
+          console.error("Failures:", result.errors);
+          toast.error(`Failed to generate tasks. Error: ${result.errors[0] || "AI Error"}`);
+        } else {
+          toast.warning("No tasks generated. Check settings counts.");
+        }
       } else {
         throw new Error(result.error || "Unknown error");
       }
+
 
     } catch (error: any) {
       console.error("Manual Run Error:", error);
