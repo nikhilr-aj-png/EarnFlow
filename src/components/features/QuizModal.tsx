@@ -28,13 +28,18 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [], totalRe
   const [showResult, setShowResult] = useState(false);
   const [timeLeft, setTimeLeft] = useState(10); // 10 Seconds Limit
 
+  // Reset timer when question changes
+  useEffect(() => {
+    setTimeLeft(10);
+  }, [currentIndex]);
+
+  // Timer Countdown
   useEffect(() => {
     if (!isOpen || showResult || questions.length === 0) return;
 
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
-          setShowResult(true); // Auto-finish
           return 0;
         }
         return prev - 1;
@@ -42,7 +47,19 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [], totalRe
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [isOpen, showResult, questions.length]);
+  }, [isOpen, showResult, questions.length, currentIndex]);
+
+  // Handle Timeout
+  useEffect(() => {
+    if (timeLeft === 0 && !showResult && isOpen) {
+      if (currentIndex < questions.length - 1) {
+        setCurrentIndex((prev) => prev + 1);
+        setSelectedOption(null);
+      } else {
+        setShowResult(true);
+      }
+    }
+  }, [timeLeft, currentIndex, questions.length, showResult, isOpen]);
 
 
   // If no questions, just complete with 0

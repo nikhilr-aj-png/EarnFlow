@@ -15,18 +15,17 @@ export function getFirebaseAdmin() {
     }
 
     // Sanitize Private Key
-    let formattedKey = privateKey;
+    let formattedKey = privateKey.trim();
 
-    // 1. Remove surrounding double quotes if accidentally included
-    if (formattedKey.startsWith('"') && formattedKey.endsWith('"')) {
-      formattedKey = formattedKey.slice(1, -1);
-    }
-
-    // 2. Handle literal \n (Vercel specific)
+    // 1. Handle literal \n (Vercel specific)
     if (formattedKey.includes('\\n')) {
       formattedKey = formattedKey.replace(/\\n/g, '\n');
     }
 
+    // 2. Remove surrounding double quotes if accidentally included
+    if (formattedKey.startsWith('"') && formattedKey.endsWith('"')) {
+      formattedKey = formattedKey.slice(1, -1);
+    }
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId,
