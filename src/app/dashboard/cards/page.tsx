@@ -122,7 +122,7 @@ function GalleryGameCard({ game }: { game: any }) {
           </div>
           <div className="flex flex-col items-end">
             <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Duration</span>
-            <div className="text-white font-bold">{game.duration}s</div>
+            <div className="text-white font-bold">{formatDuration(game.duration)}</div>
           </div>
         </div>
         <Link href={`/dashboard/cards/${game.id}`}>
@@ -133,4 +133,15 @@ function GalleryGameCard({ game }: { game: any }) {
       </CardContent>
     </Card>
   );
+}
+
+function formatDuration(seconds: number) {
+  if (!seconds) return "0s";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = seconds % 60;
+
+  if (h > 0) return `${h}h ${m}m`;
+  if (m > 0) return `${m}m ${s > 0 ? s + 's' : ''}`;
+  return `${s}s`;
 }
