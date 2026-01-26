@@ -68,12 +68,21 @@ export async function GET(req: NextRequest) {
       if (!g.expiryLabel) return;
 
       const bucketKey = `${g.isPremium ? 'premium' : 'free'}-${g.expiryLabel}`;
+      const isExpired = now.seconds > start + duration;
+      const isHardExpired = now.seconds > start + duration + 600; // 10 mins buffer
 
-      if (now.seconds > start + duration) {
-        // Expired
-        batch.update(doc.ref, { status: "expired", updatedAt: now });
+      if (isHardExpired) {
+        // Hard Delete from Firestore to clear clutter
+        batch.delete(doc.ref);
         expiredCount++;
         batchCount++;
+      } else if (isExpired) {
+        // Soft Expire (Show Results for 10m)
+        if (g.status !== 'expired') {
+          batch.update(doc.ref, { status: "expired", updatedAt: now });
+          batchCount++;
+        }
+        expiredCount++; // Count as expired for refilling purposes
       } else {
         // Still Valid
         activeTypes.add(bucketKey);
