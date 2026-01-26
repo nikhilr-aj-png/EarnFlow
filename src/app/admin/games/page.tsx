@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
 import { collection, getDocs, doc, getDoc, setDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, onSnapshot, where } from "firebase/firestore";
 import { toast } from "sonner";
-import { Loader2, Plus, Edit, Trash2, Play, Image as ImageIcon, Search, Timer, Sparkles } from "lucide-react";
+import { Loader2, Plus, Edit, Trash2, Play, Image as ImageIcon, Timer, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
