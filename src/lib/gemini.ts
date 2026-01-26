@@ -55,6 +55,22 @@ export async function generateQuizQuestions(topic: string, count: number): Promi
     return questions.slice(0, count);
   } catch (error: any) {
     console.error("Gemini Generation Error:", error);
-    throw new Error(`AI Error: ${error.message || error}`);
+
+    // Fallback/Mock Mode if API fails
+    console.warn("⚠️ Switching to Mock/Fallback Mode due to AI Error.");
+
+    const mockQuestions = Array(count).fill(null).map((_, i) => ({
+      text: `(Sample) What is a key fact about ${topic}? (Q${i + 1})`,
+      options: [
+        `Fact A about ${topic}`,
+        `Fact B about ${topic}`,
+        `Fact C about ${topic}`,
+        `Fact D about ${topic}`
+      ],
+      correctAnswer: 0
+    }));
+
+    return mockQuestions;
   }
 }
+
