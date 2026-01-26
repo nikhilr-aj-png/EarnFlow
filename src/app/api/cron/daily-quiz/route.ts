@@ -38,9 +38,12 @@ export async function GET(req: NextRequest) {
 
     const freeCount = settings.freeDailyCount || 0;
     const premiumCount = settings.premiumDailyCount || 0;
+    const freeReward = settings.freeReward || 50;
+    const premiumReward = settings.premiumReward || 150;
     const topics = settings.topics || ["General Knowledge"];
     const now = Timestamp.now();
     const expiresAt = new Timestamp(now.seconds + (24 * 3600), 0); // 24 hours expiry
+
 
     const tasksCreated = [];
 
@@ -52,7 +55,7 @@ export async function GET(req: NextRequest) {
         const taskData = {
           title: `Daily Quiz: ${topic} (Free)`,
           description: `Complete this quick quiz about ${topic} to earn coins!`,
-          reward: 50,
+          reward: Number(freeReward),
           timeEstimate: "30 sec",
           type: "quiz",
           isPremium: false,
@@ -77,7 +80,7 @@ export async function GET(req: NextRequest) {
         const taskData = {
           title: `Daily Challenge: ${topic} (Premium)`,
           description: `Verify your knowledge in ${topic} for big rewards!`,
-          reward: 150,
+          reward: Number(premiumReward),
           timeEstimate: "60 sec",
           type: "quiz",
           isPremium: true,

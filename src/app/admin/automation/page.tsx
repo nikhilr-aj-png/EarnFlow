@@ -18,6 +18,8 @@ export default function AutomationSettingsPage() {
   const [isEnabled, setIsEnabled] = useState(false);
   const [freeDailyCount, setFreeDailyCount] = useState(2);
   const [premiumDailyCount, setPremiumDailyCount] = useState(2);
+  const [freeReward, setFreeReward] = useState(50);
+  const [premiumReward, setPremiumReward] = useState(150);
   const [topics, setTopics] = useState("History, Science, Technology, Geography, General Knowledge");
 
   useEffect(() => {
@@ -34,6 +36,8 @@ export default function AutomationSettingsPage() {
         setIsEnabled(data.isEnabled ?? false);
         setFreeDailyCount(data.freeDailyCount ?? 2);
         setPremiumDailyCount(data.premiumDailyCount ?? 2);
+        setFreeReward(data.freeReward ?? 50);
+        setPremiumReward(data.premiumReward ?? 150);
         setTopics(data.topics ? data.topics.join(", ") : "");
       }
     } catch (error) {
@@ -49,13 +53,6 @@ export default function AutomationSettingsPage() {
     try {
       const topicsList = topics.split(",").map(t => t.trim()).filter(t => t.length > 0);
 
-      // Use API to save to ensure security if rules are strict, 
-      // OR use client SDK if we allow admin writes to this specific setting.
-      // Since we hardened rules, we must use the API or allowed admin write.
-      // Let's assume we use client SDK for now as we are Admin. 
-      // WAIT! We locked down /settings writes. We need to use the API we made or a new one.
-      // Actually, for this task, I will revert to using the API for saving settings to be consistent.
-
       const response = await fetch("/api/admin/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -65,10 +62,13 @@ export default function AutomationSettingsPage() {
             isEnabled,
             freeDailyCount: Number(freeDailyCount),
             premiumDailyCount: Number(premiumDailyCount),
+            freeReward: Number(freeReward),
+            premiumReward: Number(premiumReward),
             topics: topicsList
           }
         })
       });
+
 
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || `Server Error: ${response.status}`);
@@ -162,25 +162,51 @@ export default function AutomationSettingsPage() {
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Free Tasks per Day</label>
-              <Input
-                type="number"
-                min="0"
-                value={freeDailyCount}
-                onChange={(e) => setFreeDailyCount(Number(e.target.value))}
-              />
+            <div className="space-y-4 p-4 border border-white/5 rounded-lg bg-white/5">
+              <h3 className="font-bold text-green-400">Free User Settings</h3>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tasks per Day</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={freeDailyCount}
+                  onChange={(e) => setFreeDailyCount(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Coins Reward</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={freeReward}
+                  onChange={(e) => setFreeReward(Number(e.target.value))}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Premium Tasks per Day</label>
-              <Input
-                type="number"
-                min="0"
-                value={premiumDailyCount}
-                onChange={(e) => setPremiumDailyCount(Number(e.target.value))}
-              />
+
+            <div className="space-y-4 p-4 border border-white/5 rounded-lg bg-white/5">
+              <h3 className="font-bold text-amber-400">Premium User Settings</h3>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Tasks per Day</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={premiumDailyCount}
+                  onChange={(e) => setPremiumDailyCount(Number(e.target.value))}
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium">Coins Reward</label>
+                <Input
+                  type="number"
+                  min="0"
+                  value={premiumReward}
+                  onChange={(e) => setPremiumReward(Number(e.target.value))}
+                />
+              </div>
             </div>
           </div>
+
 
           <div className="space-y-2">
             <label className="text-sm font-medium">Topics (Comma separated)</label>
