@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, setDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, onSnapshot } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc, setDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, onSnapshot } from "firebase/firestore";
 import { toast } from "sonner";
 import { Loader2, Plus, Edit, Trash2, Play, Image as ImageIcon, Search, Timer } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -57,12 +57,23 @@ export default function AdminGamesPage() {
     // Load Automation Settings
     const loadSettings = async () => {
       try {
-        const docSnap = await getDocs(query(collection(db, "settings")));
-        // Ideally fetching specific doc 'gameAutomation'
-        // const s = await getDoc(doc(db, "settings", "gameAutomation"));
-        // keeping it simple with onSnapshot for games, but fetch once for settings
+        const docRef = doc(db, "settings", "gameAutomation");
+        const docSnap = await getDocs(query(collection(db, "settings"))); // Existing query was wrong for single doc
+
+        // Correct way to fetch single doc
+        const settingsDoc = await getDoc(docRef);
+
+        if (settingsDoc.exists()) {
+          const data = settingsDoc.data();
+          if (data) {
+            setAutoEnabled(data.isEnabled || false);
+            if (data.settings) {
+              setAutoSettings(data.settings);
+            }
+          }
+        }
       } catch (e) {
-        console.error(e);
+        console.error("Error loading settings:", e);
       }
     };
     loadSettings();
