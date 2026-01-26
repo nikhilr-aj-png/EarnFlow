@@ -148,10 +148,16 @@ export default function TasksManagementPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Manage Tasks</h1>
-        <Button onClick={() => { resetForm(); setIsOpen(true); }}>
-          <Plus className="mr-2 h-4 w-4" /> Add New Task
-        </Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => window.location.href = '/admin/automation'}>
+            Auto-Quiz Settings 🤖
+          </Button>
+          <Button onClick={() => { resetForm(); setIsOpen(true); }}>
+            <Plus className="mr-2 h-4 w-4" /> Add New Task
+          </Button>
+        </div>
       </div>
+
 
       <div className="rounded-md border border-white/10 bg-card overflow-x-auto">
         <Table>
