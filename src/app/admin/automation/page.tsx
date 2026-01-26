@@ -194,7 +194,7 @@ export default function AutomationSettingsPage() {
           >
 
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
-            Run Now (Test)
+            Run Now
           </Button>
 
           <Button onClick={handleSave} disabled={saving}>
