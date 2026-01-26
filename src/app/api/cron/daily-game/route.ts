@@ -102,11 +102,6 @@ export async function GET(req: NextRequest) {
       const durationSeconds = DURATIONS_MAP[durationLabel];
       if (!durationSeconds || coinValue <= 0) return;
 
-      import { getRandomTheme } from "@/lib/gameThemes"; // Should be already imported
-      // Add import for generateCardQuestion at top, but for now assuming I can add it or it's available. 
-      // Wait, I need to add the import to 'src/app/api/cron/daily-game/route.ts' FIRST.
-      // I will do two edits. One for logic, one for import.
-
       // Logic Block:
       const theme = getRandomTheme();
       // Try AI Generation with new Key
