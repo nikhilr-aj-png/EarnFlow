@@ -102,19 +102,35 @@ export default function AdminGamesPage() {
     setIsModalOpen(true);
   };
 
+  const DURATIONS_MAP: Record<string, number> = {
+    "24h": 24 * 3600,
+    "12h": 12 * 3600,
+    "6h": 6 * 3600,
+    "3h": 3 * 3600,
+    "2h": 2 * 3600,
+    "1h": 3600,
+    "30m": 1800
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     try {
+      const durationSeconds = DURATIONS_MAP[formData.duration] || 3600;
+
       if (editingGame) {
         await setDoc(doc(db, "cardGames", editingGame.id), {
           ...formData,
+          duration: durationSeconds,
+          expiryLabel: formData.duration, // Store label for UI
           updatedAt: serverTimestamp()
         }, { merge: true });
         toast.success("Game updated!");
       } else {
         await addDoc(collection(db, "cardGames"), {
           ...formData,
+          duration: durationSeconds,
+          expiryLabel: formData.duration,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp()
         });
@@ -122,6 +138,7 @@ export default function AdminGamesPage() {
       }
       setIsModalOpen(false);
     } catch (err) {
+
       console.error(err);
       toast.error("Process failed.");
     } finally {
