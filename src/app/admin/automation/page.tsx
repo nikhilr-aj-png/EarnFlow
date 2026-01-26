@@ -70,13 +70,15 @@ export default function AutomationSettingsPage() {
         })
       });
 
-      if (!response.ok) throw new Error("Failed to save via API");
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `Server Error: ${response.status}`);
 
       toast.success("Automation settings saved!");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error saving settings:", error);
-      toast.error("Failed to save settings.");
+      toast.error(`Save Failed: ${error.message}`);
     } finally {
+
       setSaving(false);
     }
   };
@@ -187,9 +189,10 @@ export default function AutomationSettingsPage() {
           <Button
             variant="outline"
             onClick={handleManualRun}
-            disabled={running || !isEnabled}
+            disabled={running}
             className="border-amber-500/50 hover:bg-amber-500/10 text-amber-500"
           >
+
             {running ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Zap className="w-4 h-4 mr-2" />}
             Run Now (Test)
           </Button>
