@@ -33,8 +33,10 @@ export default function WithdrawalsPage() {
 
   const fetchSettings = async () => {
     try {
+      const { getDocFromServer, doc } = await import("firebase/firestore");
       // Use getDocFromServer to bypass local cache and ensure we see the latest value
       const settingsSnap = await getDocFromServer(doc(db, "settings", "withdrawals"));
+
 
       console.log("Settings Fetched:", settingsSnap.exists() ? settingsSnap.data() : "No Doc");
 
