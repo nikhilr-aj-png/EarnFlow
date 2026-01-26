@@ -8,36 +8,69 @@ export interface GameTheme {
 
 export const GAME_THEMES: GameTheme[] = [
   {
-    id: "pixel_punks_main",
-    name: "Pixel Punks Gen 1",
-    questionTemplates: ["Find the Rare Punk", "Which 8-bit Hero?", "Select the Pixel King", "Retro Punk Choice"],
+    id: "lucky_draw_set1",
+    name: "Golden Fortune",
+    questionTemplates: ["Find the Golden Ticket", "Who is the Lucky Winner?", "Select the Royal Card", "Ultimate Fortune Choice"],
     cards: [
-      "https://images.unsplash.com/photo-1637858868799-7f26a0640eb6?w=400&h=600&fit=crop", // Pixel Character
-      "https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=400&h=600&fit=crop", // Glitch/Pixel Face
-      "https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=400&h=600&fit=crop", // Retro Game Screen
-      "https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=400&h=600&fit=crop"  // Tech Grid (Pixel-like)
+      "/images/cards/1.png",
+      "/images/cards/2.png",
+      "/images/cards/3.png",
+      "/images/cards/4.png"
     ]
   },
   {
-    id: "voxel_verse",
-    name: "Voxel Verse NFT",
-    questionTemplates: ["Find the Voxel Item", "Blocky Winner", "Rare Voxel Asset", "Cube World Choice"],
+    id: "lucky_draw_set2",
+    name: "Diamond Rush",
+    questionTemplates: ["Find the Diamond King", "Select the Rare Gem", "Luxury Choice", "Elite Member Pick"],
     cards: [
-      "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=400&h=600&fit=crop", // Blocky Character
-      "https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=400&h=600&fit=crop", // Voxel/VR
-      "https://images.unsplash.com/photo-1614726365723-49cfa095074b?w=400&h=600&fit=crop", // Abstract Cubes
-      "https://images.unsplash.com/photo-1496449903678-68ddcb189a24?w=400&h=600&fit=crop"  // Digital Noise
+      "/images/cards/5.png",
+      "/images/cards/6.png",
+      "/images/cards/7.png",
+      "/images/cards/8.png"
     ]
   },
   {
-    id: "retro_arcade",
-    name: "8-Bit Arcade",
-    questionTemplates: ["Find the Glitch", "Retro High Score", "Arcade Legend", "8-Bit Treasure"],
+    id: "lucky_draw_set3",
+    name: "Platinum Series",
+    questionTemplates: ["Platinum Winner", "Select the Top Tier", "Exclusive Access Card", "Find the Prestige Pick"],
     cards: [
-      "https://images.unsplash.com/photo-1551103782-8ab07afd45c1?w=400&h=600&fit=crop", // Retro Console
-      "https://images.unsplash.com/photo-1523843268911-45a882919fec?w=400&h=600&fit=crop", // Pixelated Screen
-      "https://images.unsplash.com/photo-1552820728-8b83bb6b773f?w=400&h=600&fit=crop", // Gaming
-      "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&h=600&fit=crop"  // Digital Glitch
+      "/images/cards/9.png",
+      "/images/cards/10.png",
+      "/images/cards/11.png",
+      "/images/cards/12.png"
+    ]
+  },
+  {
+    id: "lucky_draw_set4",
+    name: "Neon Nights",
+    questionTemplates: ["Find the Glowing Card", "Night Rider Choice", "Cyber Luck", "Future Win"],
+    cards: [
+      "/images/cards/13.png",
+      "/images/cards/14.png",
+      "/images/cards/15.png",
+      "/images/cards/16.png"
+    ]
+  },
+  {
+    id: "lucky_draw_set5",
+    name: "Royal Elite",
+    questionTemplates: ["King's Choice", "Select the Royal Seal", "Majestic Win", "Imperial Luck"],
+    cards: [
+      "/images/cards/17.png",
+      "/images/cards/18.png",
+      "/images/cards/19.png",
+      "/images/cards/20.png"
+    ]
+  },
+  {
+    id: "lucky_draw_set6",
+    name: "Cosmic Luck",
+    questionTemplates: ["Universal Winner", "Star Choice", "Galactic Fortune", "Cosmic Card"],
+    cards: [
+      "/images/cards/21.png",
+      "/images/cards/22.png",
+      "/images/cards/23.png",
+      "/images/cards/24.png"
     ]
   }
 ];

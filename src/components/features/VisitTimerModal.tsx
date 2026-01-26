@@ -67,10 +67,9 @@ export function VisitTimerModal({ isOpen, onClose, onComplete, targetUrl }: Visi
                   fill="none"
                   stroke="currentColor"
                   strokeWidth="4"
-                  className="text-amber-500"
+                  className="text-amber-500 transition-all duration-1000 ease-linear"
                   strokeDasharray="276"
                   strokeDashoffset={276 - (276 * (60 - timeLeft)) / 60}
-                  transition-all
                 />
               </svg>
             )}

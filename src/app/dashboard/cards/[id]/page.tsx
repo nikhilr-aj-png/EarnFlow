@@ -108,28 +108,59 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
   const processResult = async () => {
     if (rewardProcessed || !user || !game?.startTime?.seconds || !id) return;
 
-    setRewardProcessed(true); // Optimistic update to prevent double triggers
-
-    const gameSessionId = `${user.uid}_${id}_${game.startTime.seconds}`;
-    const entryRef = doc(db, "cardGameEntries", gameSessionId);
+    setRewardProcessed(true); // Optimistic prevent
 
     try {
       if (selectedCards.includes(game.winnerIndex)) {
         const reward = game.price * 2;
-        await updateDoc(doc(db, "users", user.uid), {
-          coins: increment(reward),
-          totalEarned: increment(reward)
-        });
-        toast.success(`🎊 Congratulations! One of your cards was the winner. You earned ${reward} coins!`);
-      } else {
-        toast.error("None of your chosen cards were the winner. Better luck next time!");
-      }
 
-      await updateDoc(entryRef, {
-        rewardProcessed: true
-      });
-    } catch (err) {
+        const response = await fetch("/api/games/card/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.uid,
+            gameId: id,
+            gameStartTime: game.startTime.seconds,
+            winnerIndex: game.winnerIndex,
+            reward: reward
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        if (data.won) {
+          toast.success(`🎊 Congratulations! You earned ${reward} coins!`);
+        } else {
+          toast.error("Better luck next time!");
+        }
+
+      } else {
+        // Mark processed even if lost so it doesn't retry
+        // But API handles this too. However, we want to avoid spamming API.
+        // Let's call API to mark it processed in DB too? 
+        // Yes, for consistency.
+        const response = await fetch("/api/games/card/claim", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            userId: user.uid,
+            gameId: id,
+            gameStartTime: game.startTime.seconds,
+            winnerIndex: game.winnerIndex,
+            reward: 0 // No reward
+          }),
+        });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error);
+
+        toast.error("None of your chosen cards were the winner.");
+      }
+    } catch (err: any) {
       console.error("Reward error:", err);
+      if (err.message !== "Reward already processed") {
+        toast.error("Failed to process result.");
+      }
     }
   };
 
@@ -141,7 +172,6 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
       return;
     }
 
-    // STRICT Premium Check
     if (game.isPremium && !userData?.isPremium) {
       toast.error("This is a Premium Game! Upgrade to play.");
       return;
@@ -155,35 +185,25 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
         setIsProcessingSelection(false);
         return;
       }
-      const gameSessionId = `${user!.uid}_${id}_${game.startTime.seconds}`;
-      const entryRef = doc(db, "cardGameEntries", gameSessionId);
 
-      const entrySnap = await getDoc(entryRef);
-      const currentSelected = entrySnap.exists() ? entrySnap.data().selectedCards || [] : [];
-
-      if (currentSelected.includes(index)) {
-        toast.error("Card already purchased!");
-        setIsProcessingSelection(false);
-        return;
-      }
-
-      await updateDoc(doc(db, "users", user!.uid), {
-        coins: increment(-game.price)
+      const response = await fetch("/api/games/card/purchase", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user!.uid,
+          gameId: id,
+          cardIndex: index,
+          gameStartTime: game.startTime.seconds,
+          price: game.price
+        }),
       });
 
-      const newSelected = [...currentSelected, index];
-      await setDoc(entryRef, {
-        userId: user!.uid,
-        gameId: id,
-        selectedCards: newSelected,
-        gameStartTime: game.startTime.seconds,
-        rewardProcessed: false,
-        updatedAt: new Date()
-      }, { merge: true });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error);
 
-      toast.success("Card purchased! You can buy more cards to increase your chances.");
-    } catch (err) {
-      toast.error("Purchase failed.");
+      toast.success("Card purchased!");
+    } catch (err: any) {
+      toast.error(err.message || "Purchase failed.");
       console.error(err);
     } finally {
       setIsProcessingSelection(false);
@@ -246,12 +266,9 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
         <div className="space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold uppercase tracking-widest">
             <Sparkles className="h-3 w-3" />
-            Timed Card Reveal
+            Spot The Winner
           </div>
           <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">{game.question}</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            All cards are visible. Buy your lucky cards now. Winner revealed at 0s!
-          </p>
         </div>
 
         <div className="flex gap-4">

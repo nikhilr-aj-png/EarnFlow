@@ -50,45 +50,83 @@ export async function GET(req: NextRequest) {
     let expiredCount = 0;
     const gamesCreated: string[] = [];  // Explicit typing
 
-    // 1. Cleanup Expired Games
-    const activeGamesSnap = await db.collection("cardGames")
-      .where("status", "==", "active")
-      .get();
+    // 1. Cleanup & Status Update
+    const activeGamesSnap = await db.collection("cardGames").where("status", "==", "active").get();
+    const expiredGamesSnap = await db.collection("cardGames").where("status", "==", "expired").get();
 
-    // Map to track what we currently have active (e.g., "free-1h": true)
+    // Map to track what we currently have (Active OR recently Expired)
     const activeTypes = new Set<string>();
 
     const batch = db.batch();
     let batchCount = 0;
 
-    activeGamesSnap.docs.forEach((doc) => {
-      const g = doc.data();
-      const start = g.startTime.seconds;
+    // Helper to process game state
+    const processGame = async (docSnap: any, isActive: boolean) => {
+      const g = docSnap.data();
+      const start = g.startTime?.seconds || 0;
       const duration = g.duration;
-      // Safety check if expiryLabel exists, else default to manual/unknown
       if (!g.expiryLabel) return;
 
       const bucketKey = `${g.isPremium ? 'premium' : 'free'}-${g.expiryLabel}`;
+
+      // Calculate times
       const isExpired = now.seconds > start + duration;
       const isHardExpired = now.seconds > start + duration + 600; // 10 mins buffer
 
       if (isHardExpired) {
-        // Hard Delete from Firestore to clear clutter
-        batch.delete(doc.ref);
+        // DELETE: 10 mins passed. Remove from DB. Slot becomes free.
+        batch.delete(docSnap.ref);
         expiredCount++;
         batchCount++;
-      } else if (isExpired) {
-        // Soft Expire (Show Results for 10m)
-        if (g.status !== 'expired') {
-          batch.update(doc.ref, { status: "expired", updatedAt: now });
+        // Do NOT add to activeTypes -> Allows Refill!
+      } else if (isActive && isExpired) {
+        // EXPIRE: Status Active -> Expired.
+        // Calculate Winner...
+        if (g.winnerSelection === 'auto' || g.winnerIndex === -1) {
+          console.log(`[Cron] Calculating Winner for ${docSnap.id}...`);
+          let finalWinnerIndex = 0;
+          try {
+            const entriesQ = await db.collection("cardGameEntries")
+              .where("gameId", "==", docSnap.id)
+              .where("gameStartTime", "==", start)
+              .get();
+
+            const cardCounts = [0, 0, 0, 0];
+            entriesQ.docs.forEach(e => {
+              const selected = e.data().selectedCards || [];
+              selected.forEach((idx: number) => { if (idx >= 0 && idx < 4) cardCounts[idx]++; });
+            });
+
+            let minVal = Infinity;
+            let candidates: number[] = [];
+            cardCounts.forEach((count, idx) => {
+              if (count < minVal) { minVal = count; candidates = [idx]; }
+              else if (count === minVal) { candidates.push(idx); }
+            });
+            finalWinnerIndex = candidates[Math.floor(Math.random() * candidates.length)];
+          } catch (err) { console.error(err); }
+
+          batch.update(docSnap.ref, {
+            status: "expired",
+            winnerIndex: finalWinnerIndex, // or val
+            updatedAt: now
+          });
+          batchCount++;
+        } else {
+          batch.update(docSnap.ref, { status: "expired", updatedAt: now });
           batchCount++;
         }
-        expiredCount++; // Count as expired for refilling purposes
+        activeTypes.add(bucketKey); // Slot still occupied (by the now-expired game)
       } else {
-        // Still Valid
+        // Still Active or recently expired (waiting for 10m)
         activeTypes.add(bucketKey);
       }
-    });
+    };
+
+    // Process all docs
+    for (const doc of activeGamesSnap.docs) await processGame(doc, true);
+    for (const doc of expiredGamesSnap.docs) await processGame(doc, false);
+
 
     if (batchCount > 0) await batch.commit();
 
@@ -116,7 +154,8 @@ export async function GET(req: NextRequest) {
         question: `${questionText} (${durationLabel})`,
         price: coinValue,
         duration: durationSeconds,
-        winnerIndex: Math.floor(Math.random() * 4),
+        winnerIndex: -1, // Pending calc
+        winnerSelection: "auto", // Default for auto-gen games
         status: "active",
         isPremium,
         cardImages: theme.cards,

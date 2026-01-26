@@ -44,6 +44,23 @@ export async function GET(req: NextRequest) {
     const now = Timestamp.now();
     const expiresAt = new Timestamp(now.seconds + (24 * 3600), 0); // 24 hours expiry
 
+    // --- CLEANUP EXPIRED QUIZZES ---
+    let deletedCount = 0;
+    const expiredSnap = await db.collection("tasks")
+      .where("type", "==", "quiz")
+      .where("expiresAt", "<", now)
+      .get();
+
+    if (!expiredSnap.empty) {
+      const batch = db.batch();
+      expiredSnap.docs.forEach(doc => {
+        batch.delete(doc.ref);
+        deletedCount++;
+      });
+      await batch.commit();
+      console.log(`[Cron] Deleted ${deletedCount} expired quizzes.`);
+    }
+    // -------------------------------
 
     const tasksCreated = [];
 
