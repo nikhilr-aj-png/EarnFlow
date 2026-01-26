@@ -192,7 +192,13 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
     );
   }
 
-  if (!game || isHardExpired || game.status !== 'active') {
+  // Allow 'active' games anytime. Allow 'expired' games ONLY if they are not 'Hard Expired' (10 mins passed).
+  const isGameVisible = game && (
+    game.status === 'active' ||
+    (game.status === 'expired' && !isHardExpired)
+  );
+
+  if (!isGameVisible) {
     const isNotStarted = game?.status === 'active' && !game?.startTime;
 
     return (
