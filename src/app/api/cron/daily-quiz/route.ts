@@ -45,20 +45,26 @@ export async function GET(req: NextRequest) {
     const expiresAt = new Timestamp(now.seconds + (24 * 3600), 0); // 24 hours expiry
 
     // --- CLEANUP EXPIRED QUIZZES ---
+    // --- CLEANUP EXPIRED QUIZZES ---
     let deletedCount = 0;
+    // Optimized: Query only by expiresAt (Single Field Index) and filter type in memory
     const expiredSnap = await db.collection("tasks")
-      .where("type", "==", "quiz")
       .where("expiresAt", "<", now)
       .get();
 
     if (!expiredSnap.empty) {
       const batch = db.batch();
       expiredSnap.docs.forEach(doc => {
-        batch.delete(doc.ref);
-        deletedCount++;
+        // Filter in memory to avoid Composite Index requirement
+        if (doc.data().type === 'quiz') {
+          batch.delete(doc.ref);
+          deletedCount++;
+        }
       });
-      await batch.commit();
-      console.log(`[Cron] Deleted ${deletedCount} expired quizzes.`);
+      if (deletedCount > 0) {
+        await batch.commit();
+        console.log(`[Cron] Deleted ${deletedCount} expired quizzes.`);
+      }
     }
     // -------------------------------
 
