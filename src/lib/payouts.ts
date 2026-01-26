@@ -35,6 +35,17 @@ export async function requestWithdrawal(userId: string, userEmail: string, amoun
     }
     await updateDoc(userRef, updateData);
 
+    // Check Auto-Withdrawal Setting
+    let initialStatus = "pending";
+    try {
+      const settingsSnap = await getDoc(doc(db, "settings", "withdrawals"));
+      if (settingsSnap.exists() && settingsSnap.data().mode === "auto") {
+        initialStatus = "approved";
+      }
+    } catch (e) {
+      console.error("Error reading settings", e);
+    }
+
     // 3. Create the request
     const docRef = await addDoc(collection(db, "withdrawals"), {
       userId,
@@ -42,9 +53,10 @@ export async function requestWithdrawal(userId: string, userEmail: string, amoun
       amount,
       method,
       details,
-      status: "pending", // Always pending (Manual Approval)
+      status: initialStatus,
       createdAt: serverTimestamp(),
     });
+
 
 
 

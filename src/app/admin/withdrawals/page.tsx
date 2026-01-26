@@ -13,6 +13,8 @@ export default function WithdrawalsPage() {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [autoMode, setAutoMode] = useState(false);
+  const [isSettingsLoading, setIsSettingsLoading] = useState(false);
 
   const fetchWithdrawals = async () => {
 
@@ -29,8 +31,62 @@ export default function WithdrawalsPage() {
     }
   };
 
+  const fetchSettings = async () => {
+    try {
+      // Use getDocFromServer to bypass local cache and ensure we see the latest value
+      const settingsSnap = await getDocFromServer(doc(db, "settings", "withdrawals"));
+
+      console.log("Settings Fetched:", settingsSnap.exists() ? settingsSnap.data() : "No Doc");
+
+      if (settingsSnap.exists()) {
+        setAutoMode(settingsSnap.data().mode === "auto");
+      }
+    } catch (e) {
+      console.error("Settings fetch error:", e);
+    }
+  };
+
+  const toggleAutoMode = async () => {
+    if (isSettingsLoading) return;
+
+    setIsSettingsLoading(true);
+    const toastId = toast.loading("Updating settings...");
+
+    try {
+      const newMode = autoMode ? "manual" : "auto";
+
+      console.log("Sending request to toggle mode to:", newMode);
+
+      // Use Server API to bypass Firestore Rules
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          setting: "withdrawals",
+          data: { mode: newMode }
+        })
+      });
+
+      const result = await response.json();
+      console.log("API Response:", result);
+
+      if (!response.ok) {
+        throw new Error(result.error || `Server Error: ${response.status}`);
+      }
+
+      setAutoMode(!autoMode);
+      toast.success(`Withdrawal mode set to ${newMode.toUpperCase()}`, { id: toastId });
+    } catch (err: any) {
+      console.error("Settings update error:", err);
+      toast.error(`Update Failed: ${err.message}`, { id: toastId, duration: 5000 });
+    } finally {
+      setIsSettingsLoading(false);
+    }
+  };
+
   useEffect(() => {
     fetchWithdrawals();
+    fetchSettings();
   }, []);
 
 
@@ -79,7 +135,23 @@ export default function WithdrawalsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold tracking-tight">Withdrawal Requests</h1>
+        <h1 className="text-3xl font-bold tracking-tight">Withdrawal Requests v2.0</h1>
+        <div className="flex items-center gap-3 bg-white/5 p-2 rounded-lg border border-white/10">
+          <span className="text-sm font-medium text-muted-foreground">Auto-Approval:</span>
+          <div className="flex items-center gap-2">
+            <span className={`text-xs font-bold ${!autoMode ? "text-green-500" : "text-muted-foreground"}`}>MANUAL</span>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={toggleAutoMode}
+              disabled={isSettingsLoading}
+              className={`h-6 w-12 p-0 rounded-full border-2 relative transition-colors ${autoMode ? "bg-green-500/20 border-green-500" : "bg-zinc-800 border-zinc-600"}`}
+            >
+              <div className={`h-4 w-4 bg-white rounded-full absolute top-0.5 transition-all ${autoMode ? "right-0.5 bg-green-500" : "left-0.5 bg-zinc-400"}`} />
+            </Button>
+            <span className={`text-xs font-bold ${autoMode ? "text-green-500" : "text-muted-foreground"}`}>AUTO</span>
+          </div>
+        </div>
       </div>
 
 
