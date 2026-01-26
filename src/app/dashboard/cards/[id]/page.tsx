@@ -141,6 +141,12 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
       return;
     }
 
+    // STRICT Premium Check
+    if (game.isPremium && !userData?.isPremium) {
+      toast.error("This is a Premium Game! Upgrade to play.");
+      return;
+    }
+
     setIsProcessingSelection(true);
 
     try {
