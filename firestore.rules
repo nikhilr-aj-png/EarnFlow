@@ -74,6 +74,13 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Settings (Global Config) - Strict Control
+    // Only allow READs from client. WRITEs must go through Server API (Admin SDK).
+    match /settings/{docId} {
+      allow read: if request.auth != null; 
+    }
+
+
     // Verification Codes
     match /verification_codes/{email} {
       allow read, write: if true; 
