@@ -124,13 +124,15 @@ export default function TasksPage() {
     }
   };
 
-  const handleFinalClaim = async (task: Task) => {
+  const handleFinalClaim = async (task: Task, customReward?: number) => {
     if (!user || isCompleting) return;
+
+    const finalReward = customReward !== undefined ? customReward : task.reward;
 
     setIsCompleting(true);
     try {
-      await completeTask(user.uid, task.id, task.reward);
-      toast.success(`Success! You earned ${task.reward} coins.`);
+      await completeTask(user.uid, task.id, finalReward);
+      toast.success(`Success! You earned ${finalReward} coins.`);
 
       setCompletedTaskIds(prev => {
         const next = new Set(prev);
@@ -138,6 +140,7 @@ export default function TasksPage() {
         return next;
       });
     } catch (error: any) {
+
       if (error.message === "Task already completed") {
         toast.info("Task was already completed!");
         setCompletedTaskIds(prev => {
@@ -249,9 +252,14 @@ export default function TasksPage() {
           isOpen={isQuizOpen}
           onClose={() => setIsQuizOpen(false)}
           questions={activeTask.questions || []}
-          onComplete={() => handleFinalClaim(activeTask)}
+          totalReward={activeTask.reward}
+          onComplete={(score) => {
+            const earned = Math.round((score / (activeTask.questions?.length || 1)) * activeTask.reward);
+            handleFinalClaim(activeTask, earned);
+          }}
         />
       )}
+
 
       {activeTask && (
         <VisitTimerModal

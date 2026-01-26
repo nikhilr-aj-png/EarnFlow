@@ -16,19 +16,20 @@ interface Question {
 interface QuizModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onComplete: () => void;
+  onComplete: (score: number) => void;
   questions: Question[];
+  totalReward: number;
 }
 
-export function QuizModal({ isOpen, onClose, onComplete, questions = [] }: QuizModalProps) {
+export function QuizModal({ isOpen, onClose, onComplete, questions = [], totalReward }: QuizModalProps) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [score, setScore] = useState(0);
   const [showResult, setShowResult] = useState(false);
 
-  // If no questions, just complete
+  // If no questions, just complete with 0
   if (questions.length === 0 && isOpen) {
-    onComplete();
+    onComplete(0);
     return null;
   }
 
@@ -52,7 +53,9 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [] }: QuizM
     setShowResult(false);
   };
 
-  const passed = score >= 3; // Pass if 3 or more correct
+  // Calculate Reward
+  const earnedCoins = Math.round((score / questions.length) * totalReward);
+  const coinsPerQuestion = Math.round(totalReward / questions.length);
 
   return (
     <Modal
@@ -70,6 +73,10 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [] }: QuizM
               exit={{ opacity: 0, x: -20 }}
               className="space-y-6"
             >
+              <div className="flex justify-between items-center text-xs text-muted-foreground px-1">
+                <span>Value: <span className="text-amber-500 font-bold">{coinsPerQuestion}</span> coins/question</span>
+                <span>Potential: <span className="text-amber-500 font-bold">{totalReward}</span> coins</span>
+              </div>
               <div className="p-4 rounded-2xl bg-amber-500/5 border border-amber-500/10 flex items-center gap-3">
                 <BrainCircuit className="h-5 w-5 text-amber-500" />
                 <p className="text-sm font-medium leading-relaxed">{questions[currentIndex]?.text}</p>
@@ -115,47 +122,46 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [] }: QuizM
               className="text-center space-y-6 py-4"
             >
               <div className="flex flex-col items-center gap-4">
-                {passed ? (
-                  <div className="w-20 h-20 rounded-full bg-green-500/20 flex items-center justify-center border border-green-500/30">
-                    <CheckCircle2 className="h-10 w-10 text-green-500" />
-                  </div>
-                ) : (
-                  <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center border border-red-500/30">
-                    <XCircle className="h-10 w-10 text-red-500" />
-                  </div>
-                )}
+                <div className="w-20 h-20 rounded-full bg-amber-500/20 flex items-center justify-center border border-amber-500/30">
+                  <span className="text-3xl font-bold text-amber-500">+{earnedCoins}</span>
+                </div>
 
                 <div>
-                  <h3 className={cn("text-2xl font-black uppercase tracking-tighter", passed ? "text-green-500" : "text-red-500")}>
-                    {passed ? "QUALIFIED!" : "FAILED"}
+                  <h3 className="text-2xl font-black uppercase tracking-tighter text-amber-500">
+                    QUIZ COMPLETED!
                   </h3>
-                  <p className="text-sm text-muted-foreground">You got {score} out of {questions.length} correct.</p>
+                  <p className="text-sm text-muted-foreground mt-2">
+                    You got <span className="text-white font-bold">{score}</span> out of {questions.length} correct.
+                  </p>
                 </div>
               </div>
 
               <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-xs leading-relaxed text-muted-foreground italic">
-                {passed
-                  ? "Congratulations! You've passed the knowledge check and earned your coins."
-                  : "You need at least 3 correct answers to claim the reward. Please try the quiz again."}
+                You earned coins for every correct answer. Keep improving to earn the maximum reward next time!
               </div>
 
-              {passed ? (
+              <Button
+                className="w-full h-12 bg-green-500 text-black font-bold hover:bg-green-600"
+                onClick={() => {
+                  onComplete(score);
+                  onClose();
+                }}
+                disabled={earnedCoins === 0 && score === 0} // Optional: force retry if 0? No, let them claim 0 or complete task.
+              // Actually if score is 0, earnedCoins is 0. 
+              // If we allow 0 coins task completion, it marks task as done.
+              // User probably wants to retry if score is low.
+              // Let's add a Retry button if score < questions.length (perfect score)
+              >
+                {earnedCoins > 0 ? "Claim My Coins" : "Complete Task"} <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+
+              {score < questions.length && (
                 <Button
-                  className="w-full h-12 bg-green-500 text-black font-bold hover:bg-green-600"
-                  onClick={() => {
-                    onComplete();
-                    onClose();
-                  }}
-                >
-                  Claim My Coins <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  className="w-full h-12 border-white/10 hover:bg-white/5 font-bold"
+                  variant="ghost"
+                  className="w-full text-muted-foreground hover:text-white"
                   onClick={handleReset}
                 >
-                  Retry Quiz
+                  Retry for Higher Score
                 </Button>
               )}
             </motion.div>
@@ -165,3 +171,4 @@ export function QuizModal({ isOpen, onClose, onComplete, questions = [] }: QuizM
     </Modal>
   );
 }
+
