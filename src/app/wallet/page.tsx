@@ -12,6 +12,7 @@ import { Coins, IndianRupee, History, Loader2, CreditCard, Plus, ArrowDownLeft, 
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { DepositModal } from "@/components/features/DepositModal";
+import { ChangeUpiModal } from "@/components/features/ChangeUpiModal";
 import { query, collection, where, orderBy, getDocs } from "firebase/firestore";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +26,7 @@ export default function WalletPage() {
   const [loading, setLoading] = useState(false);
   const [dataLoading, setDataLoading] = useState(true);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
+  const [isChangeUpiOpen, setIsChangeUpiOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   // Sync user data and coins
@@ -60,41 +62,11 @@ export default function WalletPage() {
 
 
   const handleRequestUpiChange = async () => {
-    if (userData?.upiChangeRequest) {
-      // Check if 15 days passed
-      const validAfter = userData.upiChangeRequest.validAfter?.seconds * 1000;
-      if (Date.now() < validAfter) {
-        toast.error("You must wait 15 days before updating UPI again.");
-        return;
-      }
-      // Allow update logic (simplified for now: just unlock or show modal - here unlocking via clearing savedUpi locally would need admin approval or auto-expiry?
-      // User asked: "admin panel me aa jaye or user ko dikhi ki 15 day baad update hoga"
-      // So effectively, the request is "Pending" for 15 days. After 15 days, it should likely allow them to enter new one or auto-update?
-      // Let's assume after 15 days, they can perform the update.
-      toast.success("15 day cooling period is over. You can now update.");
-      // Ideally we'd have a separate flow to ACTUALLY update it now.
-      // For this task, let's just implement the REQUEST creation.
+    if (userData?.upiChangeRequest && userData.upiChangeRequest.status === 'pending') {
+      toast.error("You already have a pending change request.");
       return;
     }
-
-    if (!confirm("For security, changing Payment Details takes 15 days. Do you want to proceed?")) return;
-
-    try {
-      const { updateDoc, doc, Timestamp } = await import("firebase/firestore");
-      // Set validAfter to 15 days from now
-      const validAfter = new Timestamp(Math.floor(Date.now() / 1000) + (15 * 24 * 3600), 0);
-
-      await updateDoc(doc(db, "users", user!.uid), {
-        upiChangeRequest: {
-          requestedAt: Timestamp.now(),
-          validAfter: validAfter,
-          status: "pending"
-        }
-      });
-      toast.success("Update requested! Check back in 15 days.");
-    } catch (err) {
-      toast.error("Failed to submit request.");
-    }
+    setIsChangeUpiOpen(true);
   };
 
   const coins = userData?.coins || 0;
@@ -237,8 +209,8 @@ export default function WalletPage() {
                 </div>
                 {userData?.upiChangeRequest && (
                   <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md text-xs text-blue-400">
-                    Payment Details update requested. <br />
-                    <span className="font-bold">Available to update after: {new Date(userData.upiChangeRequest.validAfter?.seconds * 1000).toLocaleDateString()}</span>
+                    Requesting change to: <span className="text-white font-mono">{userData.upiChangeRequest.newUpiId}</span><br />
+                    <span className="font-bold">Auto-update after: {new Date(userData.upiChangeRequest.validAfter?.seconds * 1000).toLocaleDateString()}</span>
                   </div>
                 )}
 
@@ -316,6 +288,12 @@ export default function WalletPage() {
       <DepositModal
         isOpen={isDepositOpen}
         onClose={() => setIsDepositOpen(false)}
+      />
+
+      <ChangeUpiModal
+        isOpen={isChangeUpiOpen}
+        onClose={() => setIsChangeUpiOpen(false)}
+        currentUpi={userData?.savedUpi || upiId}
       />
     </div>
   );
