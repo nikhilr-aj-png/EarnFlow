@@ -108,278 +108,273 @@ export default function UserManagementPage() {
       toast.error("Failed to delete user.");
       setUsers(prevUsers); // Revert
     }
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to delete user.");
-    setUsers(prevUsers); // Revert
-  }
-};
 
-const handleApproveUpi = async (userId: string, newUpi: string) => {
-  if (!confirm(`Approve UPI Change to ${newUpi}?`)) return;
-  try {
-    const { deleteField } = await import("firebase/firestore");
-    await updateDoc(doc(db, "users", userId), {
-      savedUpi: newUpi,
-      upiChangeRequest: deleteField()
+
+    const handleApproveUpi = async (userId: string, newUpi: string) => {
+      if (!confirm(`Approve UPI Change to ${newUpi}?`)) return;
+      try {
+        const { deleteField } = await import("firebase/firestore");
+        await updateDoc(doc(db, "users", userId), {
+          savedUpi: newUpi,
+          upiChangeRequest: deleteField()
+        });
+        toast.success("UPI Updated Successfully!");
+        setIsModalOpen(false);
+        // Update local state
+        setUsers(users.map(u => u.id === userId ? { ...u, savedUpi: newUpi, upiChangeRequest: null } : u));
+      } catch (e) {
+        toast.error("Failed to approve");
+      }
+    };
+
+    const filteredUsers = users.filter(u => {
+      const matchesSearch = u.email?.toLowerCase().includes(search.toLowerCase()) ||
+        u.name?.toLowerCase().includes(search.toLowerCase()) ||
+        u.referralCode?.toLowerCase().includes(search.toLowerCase());
+
+      if (filter === "admins") return matchesSearch && u.isAdmin;
+
+      // For other tabs, EXCLUDE admins
+      if (u.isAdmin) return false;
+
+      if (filter === "premium") return matchesSearch && u.isPremium;
+      if (filter === "free") return matchesSearch && !u.isPremium;
+
+      // 'all' includes everyone EXCEPT admins
+      return matchesSearch;
     });
-    toast.success("UPI Updated Successfully!");
-    setIsModalOpen(false);
-    // Update local state
-    setUsers(users.map(u => u.id === userId ? { ...u, savedUpi: newUpi, upiChangeRequest: null } : u));
-  } catch (e) {
-    toast.error("Failed to approve");
-  }
-};
 
-const filteredUsers = users.filter(u => {
-  const matchesSearch = u.email?.toLowerCase().includes(search.toLowerCase()) ||
-    u.name?.toLowerCase().includes(search.toLowerCase()) ||
-    u.referralCode?.toLowerCase().includes(search.toLowerCase());
-
-  if (filter === "admins") return matchesSearch && u.isAdmin;
-
-  // For other tabs, EXCLUDE admins
-  if (u.isAdmin) return false;
-
-  if (filter === "premium") return matchesSearch && u.isPremium;
-  if (filter === "free") return matchesSearch && !u.isPremium;
-
-  // 'all' includes everyone EXCEPT admins
-  return matchesSearch;
-});
-
-if (loading) {
-  return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-amber-500" /></div>;
-}
+    if (loading) {
+      return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-amber-500" /></div>;
+    }
 
 
-return (
-  <div className="space-y-6">
-    <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-      <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-      <div className="flex gap-2 w-full md:w-auto">
-        <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")} size="sm">All</Button>
-        <Button variant={filter === "premium" ? "default" : "outline"} onClick={() => setFilter("premium")} size="sm" className={filter === "premium" ? "bg-amber-500 hover:bg-amber-600" : ""}>Premium</Button>
-        <Button variant={filter === "free" ? "default" : "outline"} onClick={() => setFilter("free")} size="sm">Free</Button>
-        <Button variant={filter === "admins" ? "default" : "outline"} onClick={() => setFilter("admins")} size="sm" className={filter === "admins" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20" : "text-red-500 hover:bg-red-500/5"}>Admins</Button>
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+          <div className="flex gap-2 w-full md:w-auto">
+            <Button variant={filter === "all" ? "default" : "outline"} onClick={() => setFilter("all")} size="sm">All</Button>
+            <Button variant={filter === "premium" ? "default" : "outline"} onClick={() => setFilter("premium")} size="sm" className={filter === "premium" ? "bg-amber-500 hover:bg-amber-600" : ""}>Premium</Button>
+            <Button variant={filter === "free" ? "default" : "outline"} onClick={() => setFilter("free")} size="sm">Free</Button>
+            <Button variant={filter === "admins" ? "default" : "outline"} onClick={() => setFilter("admins")} size="sm" className={filter === "admins" ? "bg-red-500/10 text-red-500 hover:bg-red-500/20 border-red-500/20" : "text-red-500 hover:bg-red-500/5"}>Admins</Button>
 
-      </div>
-      <div className="relative w-full md:w-64">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          className="pl-9 bg-card border-white/10"
-          placeholder="Search name, email, ID..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </div>
-    </div>
-
-    <div className="rounded-md border border-white/10 bg-card overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>User & ID</TableHead>
-            <TableHead>Premium</TableHead>
-            <TableHead>Coins</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead className="text-right">Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {filteredUsers.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={5} className="text-center py-8">No users found.</TableCell>
-            </TableRow>
-          ) : (
-            filteredUsers.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>
-                  <div className="font-medium">{user.name || "No Name"}</div>
-                  <div className="text-xs font-mono text-amber-500">{user.referralCode || "NO-ID"}</div>
-                  <div className="text-xs text-muted-foreground">{user.email}</div>
-                </TableCell>
-
-                <TableCell>
-                  <Badge variant={user.isPremium ? "default" : "secondary"}>
-                    {user.isPremium ? "Yes" : "No"}
-                  </Badge>
-                </TableCell>
-                <TableCell>{(user.coins || 0).toLocaleString()}</TableCell>
-                <TableCell>
-                  {user.status === 'blocked' ? (
-                    <span className="text-red-500 font-bold">BLOCKED</span>
-                  ) : (
-                    (() => {
-                      const lastSeen = user.lastSeen?.toDate ? user.lastSeen.toDate() : new Date(0);
-                      const diffMins = (new Date().getTime() - lastSeen.getTime()) / 60000;
-                      const isOnline = diffMins < 5; // Online if active in last 5 mins
-
-                      return (
-                        <div className="flex items-center gap-2">
-                          <span className={`h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></span>
-                          <span className={isOnline ? 'text-green-500 font-bold' : 'text-muted-foreground'}>
-                            {isOnline ? "ONLINE" : "OFFLINE"}
-                          </span>
-                        </div>
-                      );
-                    })()
-                  )}
-                </TableCell>
-
-                <TableCell className="text-right">
-                  {user.isAdmin ? (
-                    <Badge variant="outline" className="border-red-500/50 text-red-500">Super Admin</Badge>
-                  ) : (
-                    <>
-                      <Button variant="ghost" size="sm" className="mr-2" onClick={() => { setSelectedUser(user); setIsModalOpen(true); }}>View</Button>
-                      <Button
-                        variant={user.status === 'blocked' ? "outline" : "destructive"}
-                        size="sm"
-                        className={user.status === 'blocked' ? "bg-green-600/10 text-green-500 mr-2" : "mr-2"}
-                        onClick={() => toggleStatus(user.id, user.status || 'active')}
-                      >
-                        {user.status === 'blocked' ? (
-                          <><ShieldCheck className="h-4 w-4 mr-1" /> Unblock</>
-                        ) : (
-                          <><ShieldAlert className="h-4 w-4 mr-1" /> Block</>
-                        )}
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
-                        onClick={() => handleDeleteUser(user.id, user.name || user.email)}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                </TableCell>
-
-              </TableRow>
-            ))
-          )}
-        </TableBody>
-      </Table>
-    </div>
-
-    {/* View/Edit User Modal */}
-    {selectedUser && (
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="User Details">
-        <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Full Name</p>
-              <p className="font-medium">{selectedUser.name || "N/A"}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5">
-              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">User ID</p>
-              <p className="font-mono text-[10px] truncate leading-5">
-                <span className="block text-amber-500 text-base">{selectedUser.referralCode}</span>
-                <span className="opacity-50 text-[9px]">{selectedUser.id}</span>
-              </p>
-            </div>
-            <div className="p-3 rounded-lg bg-white/5 border border-white/5 col-span-2">
-              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Email Address</p>
-              <p className="font-medium">{selectedUser.email}</p>
-            </div>
           </div>
-
-          <form onSubmit={handleUpdateCoins} className="space-y-4 pt-4 border-t border-white/5">
-            <h3 className="text-sm font-bold text-amber-500">Financial Management</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Current Coins</label>
-                <Input
-                  type="number"
-                  value={selectedUser.coins || 0}
-                  onChange={e => setSelectedUser({ ...selectedUser, coins: e.target.value })}
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-xs font-medium">Total Earned</label>
-                <Input
-                  type="number"
-                  value={selectedUser.totalEarned || 0}
-                  onChange={e => setSelectedUser({ ...selectedUser, totalEarned: e.target.value })}
-                />
-              </div>
-            </div>
-            <Button type="submit" size="sm" className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500 hover:text-black" disabled={isUpdating}>
-              {isUpdating ? "Saving..." : "Update Finances"}
-            </Button>
-          </form>
-
-          <div className="space-y-4 pt-4 border-t border-white/5">
-            <h3 className="text-sm font-bold text-amber-500">Access Control</h3>
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
-              <div>
-                <p className="text-sm font-medium">Premium Membership</p>
-                <p className="text-[10px] text-muted-foreground">Give or remove full access</p>
-              </div>
-              <Button
-                size="sm"
-                variant={selectedUser.isPremium ? "destructive" : "default"}
-                onClick={() => togglePremium(selectedUser.id, selectedUser.isPremium)}
-              >
-                {selectedUser.isPremium ? "Remove" : "Give"} Premium
-              </Button>
-            </div>
-
-            <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
-              <div>
-                <p className="text-sm font-medium">Account Status</p>
-                <p className="text-[10px] text-muted-foreground capitalize">Currently: {selectedUser.status || 'active'}</p>
-              </div>
-              <Button
-                size="sm"
-                variant={selectedUser.status === 'blocked' ? "outline" : "destructive"}
-                onClick={() => toggleStatus(selectedUser.id, selectedUser.status || 'active')}
-              >
-                {selectedUser.status === 'blocked' ? "Unblock User" : "Block User"}
-              </Button>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-white/5">
-            <div className="bg-amber-500/5 p-4 rounded-xl border border-amber-500/10">
-              <h4 className="text-xs font-bold text-amber-500 mb-2 uppercase tracking-wider">Referral Information</h4>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Their Code</p>
-                  <p className="font-bold">{selectedUser.referralCode || "NONE"}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] text-muted-foreground">Referred By</p>
-                  <p className="font-bold">{selectedUser.referredBy || "NONE"}</p>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="pt-4 border-t border-white/5">
-            <div className="bg-red-500/5 p-4 rounded-xl border border-red-500/10">
-              <h4 className="text-xs font-bold text-red-500 mb-2 uppercase tracking-wider flex items-center gap-2">
-                <AlertTriangle className="h-3 w-3" /> Danger Zone
-              </h4>
-              <p className="text-[10px] text-muted-foreground mb-4">
-                Deleting a user is permanent and will remove all their coins, earnings, and profile data from the system.
-              </p>
-              <Button
-                variant="destructive"
-                size="sm"
-                className="w-full bg-red-600/20 text-red-500 border border-red-500/20 hover:bg-red-600 hover:text-white"
-                onClick={() => handleDeleteUser(selectedUser.id, selectedUser.name || selectedUser.email)}
-              >
-                Permanently Delete Account
-              </Button>
-            </div>
+          <div className="relative w-full md:w-64">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9 bg-card border-white/10"
+              placeholder="Search name, email, ID..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
         </div>
-      </Modal>
-    )}
-  </div>
-);
-}
+
+        <div className="rounded-md border border-white/10 bg-card overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>User & ID</TableHead>
+                <TableHead>Premium</TableHead>
+                <TableHead>Coins</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={5} className="text-center py-8">No users found.</TableCell>
+                </TableRow>
+              ) : (
+                filteredUsers.map((user) => (
+                  <TableRow key={user.id}>
+                    <TableCell>
+                      <div className="font-medium">{user.name || "No Name"}</div>
+                      <div className="text-xs font-mono text-amber-500">{user.referralCode || "NO-ID"}</div>
+                      <div className="text-xs text-muted-foreground">{user.email}</div>
+                    </TableCell>
+
+                    <TableCell>
+                      <Badge variant={user.isPremium ? "default" : "secondary"}>
+                        {user.isPremium ? "Yes" : "No"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>{(user.coins || 0).toLocaleString()}</TableCell>
+                    <TableCell>
+                      {user.status === 'blocked' ? (
+                        <span className="text-red-500 font-bold">BLOCKED</span>
+                      ) : (
+                        (() => {
+                          const lastSeen = user.lastSeen?.toDate ? user.lastSeen.toDate() : new Date(0);
+                          const diffMins = (new Date().getTime() - lastSeen.getTime()) / 60000;
+                          const isOnline = diffMins < 5; // Online if active in last 5 mins
+
+                          return (
+                            <div className="flex items-center gap-2">
+                              <span className={`h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-500'}`}></span>
+                              <span className={isOnline ? 'text-green-500 font-bold' : 'text-muted-foreground'}>
+                                {isOnline ? "ONLINE" : "OFFLINE"}
+                              </span>
+                            </div>
+                          );
+                        })()
+                      )}
+                    </TableCell>
+
+                    <TableCell className="text-right">
+                      {user.isAdmin ? (
+                        <Badge variant="outline" className="border-red-500/50 text-red-500">Super Admin</Badge>
+                      ) : (
+                        <>
+                          <Button variant="ghost" size="sm" className="mr-2" onClick={() => { setSelectedUser(user); setIsModalOpen(true); }}>View</Button>
+                          <Button
+                            variant={user.status === 'blocked' ? "outline" : "destructive"}
+                            size="sm"
+                            className={user.status === 'blocked' ? "bg-green-600/10 text-green-500 mr-2" : "mr-2"}
+                            onClick={() => toggleStatus(user.id, user.status || 'active')}
+                          >
+                            {user.status === 'blocked' ? (
+                              <><ShieldCheck className="h-4 w-4 mr-1" /> Unblock</>
+                            ) : (
+                              <><ShieldAlert className="h-4 w-4 mr-1" /> Block</>
+                            )}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-400 hover:bg-red-500/10"
+                            onClick={() => handleDeleteUser(user.id, user.name || user.email)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </TableCell>
+
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </div>
+
+        {/* View/Edit User Modal */}
+        {selectedUser && (
+          <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="User Details">
+            <div className="space-y-6 max-h-[70vh] overflow-y-auto pr-2">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Full Name</p>
+                  <p className="font-medium">{selectedUser.name || "N/A"}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-white/5 border border-white/5">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">User ID</p>
+                  <p className="font-mono text-[10px] truncate leading-5">
+                    <span className="block text-amber-500 text-base">{selectedUser.referralCode}</span>
+                    <span className="opacity-50 text-[9px]">{selectedUser.id}</span>
+                  </p>
+                </div>
+                <div className="p-3 rounded-lg bg-white/5 border border-white/5 col-span-2">
+                  <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest">Email Address</p>
+                  <p className="font-medium">{selectedUser.email}</p>
+                </div>
+              </div>
+
+              <form onSubmit={handleUpdateCoins} className="space-y-4 pt-4 border-t border-white/5">
+                <h3 className="text-sm font-bold text-amber-500">Financial Management</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Current Coins</label>
+                    <Input
+                      type="number"
+                      value={selectedUser.coins || 0}
+                      onChange={e => setSelectedUser({ ...selectedUser, coins: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-xs font-medium">Total Earned</label>
+                    <Input
+                      type="number"
+                      value={selectedUser.totalEarned || 0}
+                      onChange={e => setSelectedUser({ ...selectedUser, totalEarned: e.target.value })}
+                    />
+                  </div>
+                </div>
+                <Button type="submit" size="sm" className="w-full bg-amber-500/10 text-amber-500 border border-amber-500/20 hover:bg-amber-500 hover:text-black" disabled={isUpdating}>
+                  {isUpdating ? "Saving..." : "Update Finances"}
+                </Button>
+              </form>
+
+              <div className="space-y-4 pt-4 border-t border-white/5">
+                <h3 className="text-sm font-bold text-amber-500">Access Control</h3>
+                <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+                  <div>
+                    <p className="text-sm font-medium">Premium Membership</p>
+                    <p className="text-[10px] text-muted-foreground">Give or remove full access</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={selectedUser.isPremium ? "destructive" : "default"}
+                    onClick={() => togglePremium(selectedUser.id, selectedUser.isPremium)}
+                  >
+                    {selectedUser.isPremium ? "Remove" : "Give"} Premium
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5">
+                  <div>
+                    <p className="text-sm font-medium">Account Status</p>
+                    <p className="text-[10px] text-muted-foreground capitalize">Currently: {selectedUser.status || 'active'}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant={selectedUser.status === 'blocked' ? "outline" : "destructive"}
+                    onClick={() => toggleStatus(selectedUser.id, selectedUser.status || 'active')}
+                  >
+                    {selectedUser.status === 'blocked' ? "Unblock User" : "Block User"}
+                  </Button>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/5">
+                <div className="bg-amber-500/5 p-4 rounded-xl border border-amber-500/10">
+                  <h4 className="text-xs font-bold text-amber-500 mb-2 uppercase tracking-wider">Referral Information</h4>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Their Code</p>
+                      <p className="font-bold">{selectedUser.referralCode || "NONE"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-muted-foreground">Referred By</p>
+                      <p className="font-bold">{selectedUser.referredBy || "NONE"}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-white/5">
+                <div className="bg-red-500/5 p-4 rounded-xl border border-red-500/10">
+                  <h4 className="text-xs font-bold text-red-500 mb-2 uppercase tracking-wider flex items-center gap-2">
+                    <AlertTriangle className="h-3 w-3" /> Danger Zone
+                  </h4>
+                  <p className="text-[10px] text-muted-foreground mb-4">
+                    Deleting a user is permanent and will remove all their coins, earnings, and profile data from the system.
+                  </p>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="w-full bg-red-600/20 text-red-500 border border-red-500/20 hover:bg-red-600 hover:text-white"
+                    onClick={() => handleDeleteUser(selectedUser.id, selectedUser.name || selectedUser.email)}
+                  >
+                    Permanently Delete Account
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </div>
+    );
+  }
