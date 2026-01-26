@@ -167,14 +167,25 @@ export default function AdminGamesPage() {
   const handleSaveAutomation = async () => {
     setSaving(true);
     try {
-      await setDoc(doc(db, "settings", "gameAutomation"), {
-        isEnabled: autoEnabled,
-        settings: autoSettings,
-        updatedAt: serverTimestamp()
+      const response = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          setting: "gameAutomation",
+          data: {
+            isEnabled: autoEnabled,
+            settings: autoSettings
+          }
+        })
       });
+
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Save failed");
+
       toast.success("Automation Settings Saved!");
-    } catch (e) {
-      toast.error("Failed to save settings");
+    } catch (e: any) {
+      console.error(e);
+      toast.error(e.message || "Failed to save settings");
     } finally {
       setSaving(false);
     }

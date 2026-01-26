@@ -14,16 +14,27 @@ export function getFirebaseAdmin() {
       `);
     }
 
+    // Sanitize Private Key
+    let formattedKey = privateKey;
+
+    // 1. Remove surrounding double quotes if accidentally included
+    if (formattedKey.startsWith('"') && formattedKey.endsWith('"')) {
+      formattedKey = formattedKey.slice(1, -1);
+    }
+
+    // 2. Handle literal \n (Vercel specific)
+    if (formattedKey.includes('\\n')) {
+      formattedKey = formattedKey.replace(/\\n/g, '\n');
+    }
+
     admin.initializeApp({
       credential: admin.credential.cert({
         projectId,
         clientEmail,
-        // Handle newlines in private key
-        privateKey: privateKey.replace(/\\n/g, '\n'),
+        privateKey: formattedKey,
       }),
     });
     console.log('Firebase Admin Initialized successfully');
   }
   return admin;
 }
-
