@@ -11,6 +11,10 @@ const genAI = new GoogleGenerativeAI(apiKey || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
 export async function generateQuizQuestions(topic: string, count: number): Promise<any[]> {
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured on the server.");
+  }
+
   try {
     const prompt = `
       Generate ${count} multiple-choice quiz questions about "${topic}".
@@ -47,8 +51,8 @@ export async function generateQuizQuestions(topic: string, count: number): Promi
     }
 
     return questions.slice(0, count);
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Generation Error:", error);
-    throw new Error("Failed to generate questions. Please try again.");
+    throw new Error(`AI Error: ${error.message || error}`);
   }
 }
