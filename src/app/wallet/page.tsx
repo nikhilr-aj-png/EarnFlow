@@ -211,7 +211,7 @@ export default function WalletPage() {
                 {userData?.upiChangeRequest && (
                   <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-md text-xs text-blue-400">
                     Requesting change to: <span className="text-white font-mono">{userData.upiChangeRequest.newUpiId}</span><br />
-                    <span className="font-bold flex items-center gap-1 mt-1"><Loader2 className="h-3 w-3 animate-spin" /> Awaiting Admin Approval</span>
+                    <span className="font-bold flex items-center gap-1 mt-1"><Loader2 className="h-3 w-3 animate-spin" /> Pending</span>
                   </div>
                 )}
 
