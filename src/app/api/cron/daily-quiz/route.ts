@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
           title: `Daily Quiz: ${topic} (Free)`,
           description: `Complete this quick quiz about ${topic} to earn coins!`,
           reward: Number(freeReward),
-          timeEstimate: "30 sec",
+          timeEstimate: "10 sec",
           type: "quiz",
           isPremium: false,
           questions: questions,
