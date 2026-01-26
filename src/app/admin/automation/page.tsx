@@ -95,8 +95,14 @@ export default function AutomationSettingsPage() {
       });
 
       const result = await response.json();
+
+      if (result.skipped) {
+        toast.info(`Automation Skipped: ${result.reason}`);
+        return;
+      }
+
       if (result.success) {
-        toast.success(`Success! Generated ${result.results.length} tasks.`);
+        toast.success(`Success! Generated ${result.count} tasks.`);
       } else {
         throw new Error(result.error || "Unknown error");
       }

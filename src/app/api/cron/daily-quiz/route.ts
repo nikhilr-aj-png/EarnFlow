@@ -44,12 +44,11 @@ export async function GET(req: NextRequest) {
 
     const tasksCreated = [];
 
-    // 3. Generate Free Tasks
-    for (let i = 0; i < freeCount; i++) {
+    // 3. Prepare Promises for Parallel Execution
+    const freePromises = Array(freeCount).fill(null).map(async (_, i) => {
       try {
         const topic = topics[Math.floor(Math.random() * topics.length)];
-        const questions = await generateQuizQuestions(topic, 2); // 2 Questions for Free
-
+        const questions = await generateQuizQuestions(topic, 2);
         const taskData = {
           title: `Daily Quiz: ${topic} (Free)`,
           description: `Complete this quick quiz about ${topic} to earn coins!`,
@@ -63,21 +62,18 @@ export async function GET(req: NextRequest) {
           createdAt: now,
           generatedBy: "AI_CRON"
         };
-
         const ref = await db.collection("tasks").add(taskData);
-        tasksCreated.push({ id: ref.id, type: "free", topic });
-        console.log(`[Cron] Created Free Task: ${ref.id}`);
+        return { success: true, id: ref.id, type: "free", topic };
       } catch (e: any) {
-        console.error(`[Cron] Failed to create free task ${i}:`, e);
+        console.error(`[Cron] Free Task Error:`, e);
+        return { success: false, error: e.message };
       }
-    }
+    });
 
-    // 4. Generate Premium Tasks
-    for (let i = 0; i < premiumCount; i++) {
+    const premiumPromises = Array(premiumCount).fill(null).map(async (_, i) => {
       try {
         const topic = topics[Math.floor(Math.random() * topics.length)];
-        const questions = await generateQuizQuestions(topic, 5); // 5 Questions for Premium
-
+        const questions = await generateQuizQuestions(topic, 5);
         const taskData = {
           title: `Daily Challenge: ${topic} (Premium)`,
           description: `Verify your knowledge in ${topic} for big rewards!`,
@@ -91,16 +87,19 @@ export async function GET(req: NextRequest) {
           createdAt: now,
           generatedBy: "AI_CRON"
         };
-
         const ref = await db.collection("tasks").add(taskData);
-        tasksCreated.push({ id: ref.id, type: "premium", topic });
-        console.log(`[Cron] Created Premium Task: ${ref.id}`);
+        return { success: true, id: ref.id, type: "premium", topic };
       } catch (e: any) {
-        console.error(`[Cron] Failed to create premium task ${i}:`, e);
+        console.error(`[Cron] Premium Task Error:`, e);
+        return { success: false, error: e.message };
       }
-    }
+    });
 
-    return NextResponse.json({ success: true, results: tasksCreated });
+    const results = await Promise.all([...freePromises, ...premiumPromises]);
+    const successCount = results.filter(r => r.success).length;
+
+    return NextResponse.json({ success: true, results, count: successCount });
+
 
   } catch (error: any) {
     console.error("[Cron] Fatal Error:", error);
