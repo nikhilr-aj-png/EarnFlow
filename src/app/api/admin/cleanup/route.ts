@@ -89,7 +89,6 @@ export async function POST(req: NextRequest) {
       deletedGames,
       deletedEntries,
       deletedTasks,
-      deletedTasks,
       deletedSubs,
       message: `Cleanup Complete. Deleted ${deletedGames} games, ${deletedEntries} bets, ${deletedTasks} tasks, and ${deletedSubs} submissions.`
     });
