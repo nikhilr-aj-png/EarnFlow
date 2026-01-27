@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
     const premiumReward = settings.premiumReward || 150;
     const topics = settings.topics || ["General Knowledge"];
     const now = Timestamp.now();
-    const expiresAt = new Timestamp(now.seconds + (24 * 3600), 0); // 24 hours expiry
+    const expiresAt = new Timestamp(now.seconds + (23 * 3600) + (55 * 60), 0); // 23h 55m expiry (safely before next midnight run)
 
     // --- CLEANUP EXPIRED QUIZZES ---
     // --- CLEANUP EXPIRED QUIZZES ---

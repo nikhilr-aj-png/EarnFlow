@@ -268,7 +268,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
             <Sparkles className="h-3 w-3" />
             Spot The Winner
           </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">{game.question}</h1>
+          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">Which card is the winner?</h1>
         </div>
 
         <div className="flex gap-4">

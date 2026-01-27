@@ -25,11 +25,11 @@ export default function AdminGamesPage() {
     free: Record<string, number>,
     premium: Record<string, number>
   }>({
-    free: { "24h": 100, "12h": 80, "6h": 60, "3h": 40, "2h": 30, "1h": 20, "30m": 10 },
-    premium: { "24h": 200, "12h": 160, "6h": 120, "3h": 80, "2h": 60, "1h": 40, "30m": 20 }
+    free: { "24h": 100, "12h": 80, "6h": 60, "3h": 40, "2h": 30, "1h": 20, "30m": 10, "5m": 5, "1m": 2 },
+    premium: { "24h": 200, "12h": 160, "6h": 120, "3h": 80, "2h": 60, "1h": 40, "30m": 20, "5m": 10, "1m": 5 }
   });
 
-  const DURATIONS = ["24h", "12h", "6h", "3h", "2h", "1h", "30m"];
+  const DURATIONS = ["24h", "12h", "6h", "3h", "2h", "1h", "30m", "5m", "1m"];
 
   // Stats State
   const [stats, setStats] = useState<Record<string, number[]>>({});
@@ -142,7 +142,9 @@ export default function AdminGamesPage() {
     "3h": 3 * 3600,
     "2h": 2 * 3600,
     "1h": 3600,
-    "30m": 1800
+    "30m": 1800,
+    "5m": 300,
+    "1m": 60
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -286,7 +288,7 @@ export default function AdminGamesPage() {
                   {DURATIONS.map(d => (
                     <div key={d} className="flex items-center justify-between">
                       <span className="text-sm font-medium w-16">{d}</span>
-                      <Input type="number" value={autoSettings.free[d]} onChange={(e) => updateSetting('free', d, Number(e.target.value))} className="h-8 w-32 bg-white/5 border-white/10" />
+                      <Input type="number" value={autoSettings.free[d] ?? 0} onChange={(e) => updateSetting('free', d, Number(e.target.value))} className="h-8 w-32 bg-white/5 border-white/10" />
                     </div>
                   ))}
                 </div>
@@ -295,7 +297,7 @@ export default function AdminGamesPage() {
                   {DURATIONS.map(d => (
                     <div key={d} className="flex items-center justify-between">
                       <span className="text-sm font-medium w-16">{d}</span>
-                      <Input type="number" value={autoSettings.premium[d]} onChange={(e) => updateSetting('premium', d, Number(e.target.value))} className="h-8 w-32 bg-white/5 border-white/10" />
+                      <Input type="number" value={autoSettings.premium[d] ?? 0} onChange={(e) => updateSetting('premium', d, Number(e.target.value))} className="h-8 w-32 bg-white/5 border-white/10" />
                     </div>
                   ))}
                 </div>

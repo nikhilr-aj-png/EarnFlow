@@ -14,7 +14,9 @@ const DURATIONS_MAP: Record<string, number> = {
   "3h": 3 * 3600,
   "2h": 2 * 3600,
   "1h": 3600,
-  "30m": 1800
+  "30m": 1800,
+  "5m": 300,
+  "1m": 60
 };
 
 
@@ -71,10 +73,10 @@ export async function GET(req: NextRequest) {
 
       // Calculate times
       const isExpired = now.seconds > start + duration;
-      const isHardExpired = now.seconds > start + duration + 600; // 10 mins buffer
+      const isHardExpired = now.seconds > start + duration + 5; // 5s buffer (effectively next cron run)
 
-      if (isHardExpired) {
-        // DELETE: 10 mins passed. Remove from DB. Slot becomes free.
+      if (!isActive && isHardExpired) {
+        // DELETE: Expired and passed buffer. Remove.
         batch.delete(docSnap.ref);
         expiredCount++;
         batchCount++;
