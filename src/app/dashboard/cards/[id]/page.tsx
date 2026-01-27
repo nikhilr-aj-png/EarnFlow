@@ -1,371 +1,448 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, updateDoc, increment, setDoc, getDoc } from "firebase/firestore";
+import { doc, onSnapshot } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, Sparkles, Timer, Coins, Trophy, AlertCircle, CheckCircle2 } from "lucide-react";
+import { Loader2, Sparkles, Timer, Coins, Trophy, AlertCircle, CheckCircle2, XCircle, Crown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function CardGameSessionPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { user } = useAuth();
+  const router = useRouter();
+  const { user, userData } = useAuth();
   const [game, setGame] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [reveal, setReveal] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
-  const [userData, setUserData] = useState<any>(null);
   const [rewardProcessed, setRewardProcessed] = useState(false);
   const [isProcessingSelection, setIsProcessingSelection] = useState(false);
+  const [statusMsg, setStatusMsg] = useState("Selecting the lucky winner...");
+  const isCalculating = timeLeft <= 0 && !reveal;
+  const isArchived = game?.winnerSelection === 'manual';
 
   useEffect(() => {
     if (!user || !id) return;
-
-    // Listen to user data for coins
-    const unsubUser = onSnapshot(doc(db, "users", user.uid), (doc) => {
-      setUserData(doc.data());
-    });
-
-    // Listen to specific game session
     const unsubGame = onSnapshot(doc(db, "cardGames", id), (doc) => {
       if (doc.exists()) {
         const data = doc.data();
         setGame(data);
-
-        // Calculate remaining time relative to server startTime
         if (data.startTime?.seconds) {
-          const startSeconds = data.startTime.seconds;
-          const currentSeconds = Math.floor(Date.now() / 1000);
-          const elapsed = currentSeconds - startSeconds;
-          const remaining = Math.max(0, data.duration - elapsed);
-
-          setTimeLeft(remaining);
+          const elapsed = Math.floor(Date.now() / 1000) - data.startTime.seconds;
+          setTimeLeft(Math.max(0, data.duration - elapsed));
         } else if (data.status === 'active') {
-          // If active but no server time yet (local write), assume full duration
           setTimeLeft(data.duration);
         }
       } else {
         setGame(null);
       }
       setLoading(false);
-    });
-
-    return () => {
-      unsubUser();
-      unsubGame();
-    };
+    }, (err) => console.error("Session Game Error:", err));
+    return () => { unsubGame(); };
   }, [user, id]);
 
-  // Check for Hard Expiration (e.g. 10 minutes after game ends)
-  const isHardExpired = timeLeft < -600; // 600 seconds = 10 minutes
+  const isHardExpired = timeLeft < -600;
 
-  // Persistent Selection Listener - Unique to this specific game ID
   useEffect(() => {
     if (!user || !game?.startTime?.seconds || !id) return;
-
     const gameSessionId = `${user.uid}_${id}_${game.startTime.seconds}`;
-    const entryRef = doc(db, "cardGameEntries", gameSessionId);
-
-    const unsubEntry = onSnapshot(entryRef, (doc) => {
+    const unsubEntry = onSnapshot(doc(db, "cardGameEntries", gameSessionId), (doc) => {
       if (doc.exists()) {
-        const entryData = doc.data();
-        setSelectedCards(entryData.selectedCards || []);
-        if (entryData.rewardProcessed) {
-          setRewardProcessed(true);
-        }
+        const d = doc.data();
+        setSelectedCards(d.selectedCards || []);
+        if (d.rewardProcessed) setRewardProcessed(true);
       } else {
         setSelectedCards([]);
         setRewardProcessed(false);
       }
-    });
-
+    }, (err) => console.error("Session Entry Error:", err));
     return () => unsubEntry();
   }, [user, game?.startTime, id]);
 
-  // Handle Game States based on Time
+  const hasFinished = useRef(false);
+
   useEffect(() => {
-    if (timeLeft > 0) {
+    hasFinished.current = false;
+  }, [id]);
+
+  // SAFETY REVEAL: Guaranteed transition if winner exists in DB
+  useEffect(() => {
+    if (game?.winnerIndex !== undefined && game.winnerIndex !== -1 && !reveal) {
+      setReveal(true);
+    }
+  }, [game, reveal]);
+
+  // SAFETY: Force reveal if stuck calculating for > 15s
+  useEffect(() => {
+    let timeout: NodeJS.Timeout;
+    if (isCalculating) {
+      timeout = setTimeout(() => {
+        setReveal(true);
+        setStatusMsg("Connection Slow - Showing Result");
+      }, 15000);
+    }
+    return () => clearTimeout(timeout);
+  }, [isCalculating]);
+
+  // Effect to trigger Auto-Cycle after reveal
+  useEffect(() => {
+    if (reveal && !isArchived) {
+      const timer = setTimeout(() => {
+        cycleGame();
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [reveal, isArchived]);
+
+  useEffect(() => {
+    if (timeLeft > 0 && game?.startTime?.seconds) {
       setIsPlaying(true);
       setReveal(false);
-      const timer = setInterval(() => setTimeLeft((prev) => prev - 1), 1000);
+      const end = game.startTime.seconds + game.duration;
+      const timer = setInterval(() => setTimeLeft(Math.max(0, end - Math.floor(Date.now() / 1000))), 1000);
       return () => clearInterval(timer);
-    } else if (timeLeft <= 0) {
+    } else if (timeLeft <= 0 && isPlaying) {
       setIsPlaying(false);
-      setReveal(true);
 
-      // Process result automatically if time is 0 and user had selected at least one card
-      if (selectedCards.length > 0 && !rewardProcessed && game) {
-        processResult();
-      }
-    }
-  }, [timeLeft, selectedCards.length, rewardProcessed, game]);
+      const handleFinish = async () => {
+        if (!game) return;
 
-  const processResult = async () => {
-    if (rewardProcessed || !user || !game?.startTime?.seconds || !id) return;
-
-    setRewardProcessed(true); // Optimistic prevent
-
-    try {
-      if (selectedCards.includes(game.winnerIndex)) {
-        const reward = game.price * 2;
-
-        const response = await fetch("/api/games/card/claim", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.uid,
-            gameId: id,
-            gameStartTime: game.startTime.seconds,
-            winnerIndex: game.winnerIndex,
-            reward: reward
-          }),
-        });
-
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
-
-        if (data.won) {
-          toast.success(`🎊 Congratulations! You earned ${reward} coins!`);
-        } else {
-          toast.error("Better luck next time!");
+        // Finalize if needed
+        if (game.winnerIndex === -1 || game.winnerIndex === undefined) {
+          try {
+            // Race: If finalizeGame hangs, the safety reveal effect will kick in anyway
+            const winnerIdx = await finalizeGame();
+            if (winnerIdx !== -1) {
+              setGame((prev: any) => ({ ...prev, winnerIndex: winnerIdx }));
+            }
+          } catch (e) {
+            console.error("Finalize Error during finish:", e);
+          }
         }
 
-      } else {
-        // Mark processed even if lost so it doesn't retry
-        // But API handles this too. However, we want to avoid spamming API.
-        // Let's call API to mark it processed in DB too? 
-        // Yes, for consistency.
-        const response = await fetch("/api/games/card/claim", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            userId: user.uid,
-            gameId: id,
-            gameStartTime: game.startTime.seconds,
-            winnerIndex: game.winnerIndex,
-            reward: 0 // No reward
-          }),
-        });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error);
+        // Guaranteed reveal
+        setReveal(true);
 
-        toast.error("None of your chosen cards were the winner.");
+        // Process reward if applicable
+        if (selectedCards.length > 0 && !rewardProcessed) {
+          await processResult();
+        }
+      };
+
+      handleFinish();
+    }
+  }, [timeLeft, isPlaying, game, selectedCards.length, rewardProcessed]);
+
+  const finalizeGame = async () => {
+    if (!id) return -1;
+    setStatusMsg("Connecting to server...");
+    try {
+      const res = await fetch("/api/games/card/finalize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameId: id, gameStartTime: game?.startTime?.seconds })
+      });
+      setStatusMsg("Processing Winner...");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Finalize Failed");
+
+      setStatusMsg("Winner Decided!");
+      return data.winnerIndex ?? -1;
+    } catch (e: any) {
+      setStatusMsg(`Failed: ${e.message}`);
+      toast.error(`Finalize Error: ${e.message}`);
+      return -1;
+    }
+  };
+
+  const cycleGame = async () => {
+    if (!id) return false;
+    try {
+      const res = await fetch("/api/games/card/cycle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          gameId: id,
+          expiryLabel: game?.expiryLabel,
+          isPremium: game?.isPremium
+        })
+      });
+      const data = await res.json();
+
+      if (data.success && data.newGameId) {
+        router.replace(`/dashboard/cards/${data.newGameId}`);
+        return true;
+      } else if (data.success && data.action === "archived") {
+        toast.info("Game Finished (Manual).");
+        router.replace("/dashboard");
+        return true;
+      } else if (data.success) {
+        toast.info("Game ended.");
+        router.replace("/dashboard");
+        return true;
       }
-    } catch (err: any) {
-      console.error("Reward error:", err);
-      if (err.message !== "Reward already processed") {
-        toast.error("Failed to process result.");
+      return false;
+    } catch (e: any) {
+      console.error(e);
+      return false;
+    }
+  };
+
+  const processResult = async () => {
+    if (rewardProcessed || !user || !game || !id) return;
+    setRewardProcessed(true);
+    try {
+      const res = await fetch("/api/games/card/claim", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.uid,
+          gameId: id,
+          gameStartTime: game.startTime?.seconds
+        }),
+      });
+      const data = await res.json();
+      if (data.won) toast.success(`🎊 Won ${data.reward || (game.price * 2)} Coins!`);
+      else if (data.success && !data.won) toast.error("Better luck next time!");
+      else if (data.error === "Reward already processed") {
+        // This is actually GOOD - it means our server-side automation already paid them!
+        const won = selectedCards.includes(game.winnerIndex);
+        if (won) toast.success(`🎊 Won Coins! (Auto-credited)`);
       }
+    } catch (e: any) {
+      console.error(e);
+      setRewardProcessed(false); // Allow retry on fatal network error
     }
   };
 
   const selectCard = async (index: number) => {
     if (!isPlaying || selectedCards.includes(index) || reveal || isProcessingSelection) return;
-
-    if ((userData?.coins || 0) < game.price) {
-      toast.error("Insufficient coins to buy this card!");
-      return;
-    }
-
-    if (game.isPremium && !userData?.isPremium) {
-      toast.error("This is a Premium Game! Upgrade to play.");
-      return;
-    }
+    if ((userData?.coins || 0) < game.price) return toast.error("Need more coins!");
+    if (game.isPremium && !userData?.isPremium) return toast.error("Premium Only!");
 
     setIsProcessingSelection(true);
-
     try {
-      if (!game?.startTime?.seconds) {
-        toast.error("Game session not started yet.");
-        setIsProcessingSelection(false);
-        return;
-      }
-
-      const response = await fetch("/api/games/card/purchase", {
+      const res = await fetch("/api/games/card/purchase", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user!.uid,
           gameId: id,
           cardIndex: index,
-          gameStartTime: game.startTime.seconds,
+          gameStartTime: game.startTime?.seconds,
           price: game.price
         }),
       });
-
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error);
-
-      toast.success("Card purchased!");
-    } catch (err: any) {
-      toast.error(err.message || "Purchase failed.");
-      console.error(err);
-    } finally {
-      setIsProcessingSelection(false);
-    }
+      if (!res.ok) throw new Error();
+      toast.success("Card Locked In!");
+    } catch { toast.error("Purchase failed"); }
+    finally { setIsProcessingSelection(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex h-[80vh] items-center justify-center"><Loader2 className="h-10 w-10 animate-spin text-amber-500" /></div>;
 
-  // Allow 'active' games anytime. Allow 'expired' games ONLY if they are not 'Hard Expired' (10 mins passed).
-  const isGameVisible = game && (
-    game.status === 'active' ||
-    (game.status === 'expired' && !isHardExpired)
-  );
+  // Allow 'inactive' for Manual History viewing
+  const isGameVisible = game && (game.status === 'active' || game.status === 'inactive' || (game.status === 'expired' && !isHardExpired));
 
   if (!isGameVisible) {
     const isNotStarted = game?.status === 'active' && !game?.startTime;
-
     return (
-      <div className="text-center py-20 bg-card/20 rounded-2xl border border-dashed border-white/10 space-y-4">
-        <div className="relative inline-block">
-          {isNotStarted ? (
-            <Timer className="h-12 w-12 text-amber-500 mx-auto animate-pulse" />
-          ) : (
-            <AlertCircle className="h-12 w-12 text-muted-foreground mx-auto" />
-          )}
-          <motion.div
-            animate={{ scale: [1, 1.2, 1], opacity: [0.5, 1, 0.5] }}
-            transition={{ repeat: Infinity, duration: 2 }}
-            className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full"
-          />
+      <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-6">
+        <div className="relative">
+          <div className="absolute inset-0 bg-amber-500/20 blur-2xl rounded-full animate-pulse" />
+          <Sparkles className="h-16 w-16 text-amber-500 relative z-10" />
         </div>
-        <h2 className="text-xl font-bold">{isNotStarted ? "Preparing Session" : "Waiting for New Session"}</h2>
-        <p className="text-muted-foreground max-w-md mx-auto">
-          {isNotStarted
-            ? "The admin is getting this game session ready. It will start shortly!"
-            : isHardExpired || game?.status !== 'active'
-              ? "This game session has ended or is currently inactive. Please check the dashboard for other active games."
-              : "No active game session at the moment. Please wait for the admin to start a new one."}
-        </p>
-        <Button
-          variant="outline"
-          onClick={() => window.history.back()}
-          className="mt-4 rounded-full"
-        >
-          Go Back to Dashboard
-        </Button>
+        <div>
+          <h2 className="text-2xl font-black text-white uppercase tracking-widest">{isNotStarted ? "Preparing..." : "Session Closed"}</h2>
+          <p className="text-zinc-500 max-w-sm mt-2">The dealer is shuffling. Check back in a moment.</p>
+        </div>
+        <Button onClick={() => router.back()} className="rounded-full px-8 bg-zinc-800 hover:bg-zinc-700">Return to Lobby</Button>
       </div>
-    );
+    )
   }
 
+  const userWon = reveal && game && selectedCards.includes(game.winnerIndex);
+  // Removed duplicate isCalculating
+
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="space-y-2">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-500 text-xs font-bold uppercase tracking-widest">
-            <Sparkles className="h-3 w-3" />
-            Spot The Winner
-          </div>
-          <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight text-white">Which card is the winner?</h1>
-        </div>
+    <div className="relative min-h-[85vh] w-full max-w-7xl mx-auto rounded-[2.5rem] overflow-hidden shadow-2xl bg-[#050505] border border-white/5 flex flex-col items-center">
 
-        <div className="flex gap-4">
-          <div className="flex flex-col items-end">
-            <div className="flex items-center gap-2 text-xl sm:text-2xl font-bold text-amber-500">
-              <Coins className="h-5 w-5 sm:h-6 sm:w-6" />
-              {game.price}
-            </div>
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest text-white">Per Card</span>
-          </div>
-          <div className="flex flex-col items-end">
-            <div className={`flex items-center gap-2 text-xl sm:text-2xl font-bold ${timeLeft < 10 && timeLeft > 0 ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-              <Timer className="h-5 w-5 sm:h-6 sm:w-6" />
-              {timeLeft > 0 ? `${timeLeft}s` : "RESULT"}
-            </div>
-            <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest text-white">Countdown</span>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-        {game.cardImages.map((img: string, idx: number) => {
-          const isWinner = reveal && idx === game.winnerIndex;
-          const isSelected = selectedCards.includes(idx);
-
-          return (
-            <div key={idx} className="space-y-4">
-              <motion.div
-                whileHover={isPlaying && !isSelected ? { scale: 1.02 } : {}}
-                className={cn(
-                  "relative aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl transition-all duration-700",
-                  isWinner ? "ring-4 ring-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.6)]" : "border border-white/5",
-                  reveal && !isWinner ? "grayscale opacity-20" : ""
-                )}
-              >
-                <img src={img} alt="Card" className="w-full h-full object-cover" />
-
-                <AnimatePresence>
-                  {isWinner && (
-                    <motion.div
-                      key="winner"
-                      initial={{ scale: 0, opacity: 0 }}
-                      animate={{ scale: 1, opacity: 1 }}
-                      className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-sm"
-                    >
-                      <Trophy className="h-16 w-16 text-amber-500 drop-shadow-2xl mb-2" />
-                      <span className="text-xl font-black text-amber-500 drop-shadow-lg">WINNER</span>
-                    </motion.div>
-                  )}
-
-                  {isSelected && (
-                    <motion.div
-                      key="selected"
-                      className={cn(
-                        "absolute top-2 right-2 px-2 py-1 rounded bg-amber-500 text-black text-[10px] font-bold flex items-center gap-1 shadow-xl",
-                        reveal && idx !== game.winnerIndex && "bg-red-500 text-white"
-                      )}
-                    >
-                      <CheckCircle2 className="h-3 w-3" />
-                      {reveal && idx !== game.winnerIndex ? "WRONG CHOICE" : "SELECTED"}
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-
-              <Button
-                disabled={!isPlaying || isSelected || reveal || isProcessingSelection}
-                onClick={() => selectCard(idx)}
-                className={cn(
-                  "w-full h-12 font-bold uppercase tracking-wider text-xs rounded-xl shadow-lg border-b-4 active:border-b-0 transition-all",
-                  isSelected
-                    ? "bg-green-600 border-green-800 text-white cursor-default"
-                    : "bg-white/5 border-white/10 hover:bg-white/10 text-white"
-                )}
-              >
-                {isSelected ? (reveal ? (idx === game.winnerIndex ? "WON!" : "LOST") : "OWNED") : "BUY CARD"}
-              </Button>
-            </div>
-          );
-        })}
-      </div>
-
+      {/* Calculating Overlay */}
       <AnimatePresence>
-        {reveal && (
+        {isCalculating && (
           <motion.div
-            initial={{ y: 20, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            className="text-center p-8 bg-card/40 rounded-3xl border border-white/5 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 bg-black/80 backdrop-blur-md flex flex-col items-center justify-center text-center"
           >
-            <h2 className="text-2xl font-bold mb-2 text-white">Session Finished</h2>
-            <p className="text-muted-foreground mb-6">Results are out! Please check other games or wait for a new session.</p>
-            <Button variant="premium" onClick={() => window.location.reload()} className="rounded-full px-12 h-12">
-              Refresh Current Game
-            </Button>
+            <div className="relative">
+              <div className="absolute inset-0 bg-amber-500/20 blur-xl rounded-full" />
+              <Loader2 className="h-16 w-16 text-amber-500 animate-spin relative z-10" />
+            </div>
+            <h2 className="text-3xl font-black text-white uppercase tracking-widest mt-6 animate-pulse">Finalizing Results</h2>
+            <p className="text-zinc-500 font-medium mt-2">{statusMsg}</p>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Victory FX */}
+      {userWon && <VictoryConfetti />}
+
+      {/* Ambient Backlighting */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))] from-amber-900/10 via-black/50 to-black pointer-events-none z-0" />
+
+      {/* Header */}
+      <div className="relative z-10 w-full flex flex-col md:flex-row items-center justify-between p-6 md:p-8 bg-black/20 backdrop-blur-xl border-b border-white/5">
+        <div className="flex items-center gap-4">
+          <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
+            <Crown className="h-6 w-6 text-black" />
+          </div>
+          <div>
+            <h1 className="text-2xl md:text-3xl font-black tracking-tight text-white uppercase italic">{game.question}</h1>
+            <p className="text-amber-500 font-bold text-xs uppercase tracking-widest">High Stakes Table</p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-6 mt-4 md:mt-0 bg-black/40 p-2 pr-6 rounded-full border border-white/5">
+          <div className="flex items-center gap-3 px-4 py-2 bg-amber-500/10 rounded-full border border-amber-500/20">
+            <Coins className="h-5 w-5 text-amber-500" />
+            <span className="text-xl font-black text-amber-500">{game.price}</span>
+          </div>
+          <div className="flex items-col md:flex-row items-end md:items-center gap-2">
+            <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest">Time Remaining</span>
+            <span className={cn("text-2xl font-black font-mono", timeLeft < 10 ? "text-red-500 animate-pulse" : "text-white")}>
+              {timeLeft > 0 ? `${timeLeft}s` : "0s"}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Game Board */}
+      <div className="relative z-10 flex-1 w-full flex flex-col items-center justify-center p-6 md:p-12">
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 w-full max-w-5xl perspective-1000">
+          {game.cardImages.map((img: string, idx: number) => {
+            const isWinner = reveal && idx === game.winnerIndex;
+            const isSelected = selectedCards.includes(idx);
+            const isLost = reveal && !isWinner;
+
+            // If revealed, and not this card, dim it down
+            const isDimmed = reveal && !isWinner;
+
+            return (
+              <motion.div
+                key={idx}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: isDimmed ? 0.3 : 1, y: 0, scale: isWinner ? 1.05 : 1 }}
+                transition={{ delay: idx * 0.1 }}
+                className="relative group"
+              >
+                <div
+                  onClick={() => selectCard(idx)}
+                  className={cn(
+                    "relative aspect-[3/4] rounded-2xl cursor-pointer transition-all duration-500 preserve-3d shadow-2xl",
+                    isSelected ? "ring-4 ring-amber-500 ring-offset-4 ring-offset-black" : "hover:scale-[1.02]",
+                    isWinner && "ring-4 ring-green-500 shadow-[0_0_50px_rgba(34,197,94,0.4)] z-20"
+                  )}>
+                  {/* Card Image */}
+                  <img src={img} alt="Card" className="w-full h-full object-cover rounded-2xl bg-zinc-900" />
+
+                  {/* Overlays */}
+                  {isSelected && !reveal && (
+                    <div className="absolute inset-0 bg-amber-500/20 backdrop-blur-[2px] rounded-2xl flex items-center justify-center border-2 border-amber-500">
+                      <div className="bg-black/80 text-amber-500 px-4 py-2 rounded-full font-black uppercase tracking-widest shadow-xl flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" /> Locked
+                      </div>
+                    </div>
+                  )}
+
+                  {reveal && isWinner && (
+                    <div className="absolute inset-0 bg-green-500/20 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center border-2 border-green-500 animate-pulse">
+                      <Trophy className="h-16 w-16 text-white drop-shadow-xl mb-2" />
+                      <span className="bg-green-500 text-black px-4 py-1 rounded-full font-black uppercase tracking-widest">WINNER</span>
+                    </div>
+                  )}
+
+                  {reveal && isLost && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] rounded-2xl flex flex-col items-center justify-center border-2 border-zinc-800">
+                      <span className="text-zinc-500 font-bold text-xs uppercase tracking-widest mb-1">Pass</span>
+                      <XCircle className="h-8 w-8 text-zinc-600" />
+                    </div>
+                  )}
+
+                  {reveal && isLost && isSelected && (
+                    <div className="absolute inset-0 bg-red-500/40 backdrop-blur-[4px] rounded-2xl flex flex-col items-center justify-center border-2 border-red-500 z-10">
+                      <XCircle className="h-12 w-12 text-white mb-2 drop-shadow-lg" />
+                      <span className="bg-red-500 text-white px-3 py-1 rounded-full font-bold text-xs uppercase shadow-lg">YOU LOST</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Interactive Button */}
+                <div className="mt-4">
+                  <Button
+                    disabled={!isPlaying || isSelected || reveal || isProcessingSelection}
+                    onClick={() => selectCard(idx)}
+                    className={cn(
+                      "w-full h-12 rounded-xl font-bold uppercase tracking-widest transition-all",
+                      isSelected
+                        ? "bg-amber-500/20 text-amber-500 hover:bg-amber-500/30"
+                        : "bg-white/10 hover:bg-white/20 text-white hover:scale-[1.02]"
+                    )}
+                  >
+                    {isSelected ? "Owned" : `Select`}
+                  </Button>
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+
+        {/* Notification Removed */}
+
+        {timeLeft <= 0 && !reveal && (
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-40">
+            <Button
+              onClick={() => { hasFinished.current = false; cycleGame(); }}
+              variant="outline"
+              className="bg-red-500/10 border border-red-500/50 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-lg"
+            >
+              <AlertCircle className="w-4 h-4 mr-2" />
+              Game Stuck? Force New Round
+            </Button>
+          </div>
+        )}
+
+      </div>
     </div>
-  );
+  )
+}
+
+function VictoryConfetti() {
+  return (
+    <div className="absolute inset-0 overflow-hidden pointer-events-none z-50">
+      {[...Array(30)].map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ y: -100, x: Math.random() * 100 + "%", rotate: 0 }}
+          animate={{ y: "120vh", rotate: 720 }}
+          transition={{ duration: Math.random() * 2 + 3, repeat: Infinity, ease: "linear", delay: Math.random() * 2 }}
+          className="absolute"
+          style={{ left: Math.random() * 100 + "%" }}
+        >
+          <div
+            className="w-3 h-3 rounded-sm"
+            style={{ backgroundColor: ['#f59e0b', '#ef4444', '#22c55e', '#3b82f6'][i % 4] }}
+          />
+        </motion.div>
+      ))}
+    </div>
+  )
 }

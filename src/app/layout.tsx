@@ -1,18 +1,20 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import Script from "next/script";
-import { MonetagScript } from "@/components/features/MonetagScript";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+
+const outfit = Outfit({
   subsets: ["latin"],
+  variable: "--font-heading",
+  display: "swap",
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
   subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -28,7 +30,7 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark">
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${outfit.variable} ${inter.variable} antialiased font-sans bg-background text-foreground`}
       >
         {/* --- PROPELLERADS SITE-WIDE SCRIPT (Popunder / MultiTag) --- */}
         <Script id="propeller-tag" strategy="afterInteractive">
@@ -38,7 +40,7 @@ export default function RootLayout({
           `}
         </Script>
 
-        <MonetagScript />
+
         <Providers>{children}</Providers>
       </body>
     </html>

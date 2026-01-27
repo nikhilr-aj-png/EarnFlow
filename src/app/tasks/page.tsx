@@ -9,7 +9,7 @@ import { collection, getDocs, query, orderBy, where } from "firebase/firestore";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { AdModal } from "@/components/features/AdModal";
+
 import { UpgradeModal } from "@/components/features/UpgradeModal";
 import { QuizModal } from "@/components/features/QuizModal";
 import { VisitTimerModal } from "@/components/features/VisitTimerModal";
@@ -23,7 +23,7 @@ export default function TasksPage() {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'premium' | 'free'>('all');
 
-  const [isAdOpen, setIsAdOpen] = useState(false);
+
   const [isUpgradeOpen, setIsUpgradeOpen] = useState(false);
   const [isQuizOpen, setIsQuizOpen] = useState(false);
   const [isVisitOpen, setIsVisitOpen] = useState(false);
@@ -103,13 +103,7 @@ export default function TasksPage() {
     }
 
     setActiveTask(task);
-
-    if (!task.isPremium) {
-      setIsAdOpen(true);
-    } else {
-      // Premium users skip ads but still might need to do quiz
-      handleFinishTask(task);
-    }
+    handleFinishTask(task);
   };
 
   const handleFinishTask = (task: Task) => {
@@ -234,14 +228,6 @@ export default function TasksPage() {
         </div>
       )}
 
-      {activeTask && (
-        <AdModal
-          isOpen={isAdOpen}
-          onClose={() => setIsAdOpen(false)}
-          onComplete={() => handleFinishTask(activeTask)}
-        />
-      )}
-
       <UpgradeModal
         isOpen={isUpgradeOpen}
         onClose={() => setIsUpgradeOpen(false)}
@@ -279,6 +265,7 @@ export default function TasksPage() {
           onComplete={() => handleFinalClaim(activeTask)}
         />
       )}
+
 
       <UpgradeModal
         isOpen={isUpgradeOpen}

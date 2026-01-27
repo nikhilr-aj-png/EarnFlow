@@ -1,7 +1,7 @@
 "use client";
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Coins, ArrowUpRight, AlertCircle } from "lucide-react";
+import { Users, Coins, ArrowUpRight, AlertCircle, TrendingUp, Trophy } from "lucide-react";
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
@@ -14,9 +14,10 @@ export default function AdminDashboard() {
     payouts: 0,
     pending: 0,
     tasks: 0,
-    // Trigger Rebuild
     premiumRevenue: 0,
     upiRequests: 0,
+    totalTaskEarnings: 0,
+    totalGameEarnings: 0,
   });
   const [recentRequests, setRecentRequests] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,13 +35,18 @@ export default function AdminDashboard() {
         approvedSnap.forEach(doc => totalPayouts += doc.data().amount);
         successfulSnap.forEach(doc => totalPayouts += doc.data().amount);
 
-        // Calculate Premium Revenue & UPI Requests
+        // Calculate Premium Revenue, UPI Requests, and Global Earnings
         let premiumCount = 0;
         let upiCount = 0;
+        let totalTaskEarnings = 0;
+        let totalGameEarnings = 0;
+
         usersSnap.forEach(doc => {
           const data = doc.data();
           if (data.isPremium) premiumCount++;
           if (data.upiChangeRequest?.status === 'pending') upiCount++;
+          totalTaskEarnings += (data.taskEarnings || 0);
+          totalGameEarnings += (data.gameEarnings || 0);
         });
         const premiumRevenue = premiumCount * 99;
 
@@ -51,6 +57,8 @@ export default function AdminDashboard() {
           payouts: totalPayouts,
           premiumRevenue,
           upiRequests: upiCount,
+          totalTaskEarnings,
+          totalGameEarnings,
         });
 
 
@@ -79,6 +87,17 @@ export default function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-white/10 bg-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
+            <Users className="h-4 w-4 text-blue-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{stats.users}</div>
+            <p className="text-xs text-muted-foreground">Registered accounts</p>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/10 bg-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">UPI Requests</CardTitle>
             <AlertCircle className="h-4 w-4 text-amber-500" />
           </CardHeader>
@@ -90,12 +109,20 @@ export default function AdminDashboard() {
 
         <Card className="border-white/10 bg-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Users</CardTitle>
-            <Users className="h-4 w-4 text-blue-500" />
+            <CardTitle className="text-sm font-medium text-muted-foreground">Payout Breakdown</CardTitle>
+            <TrendingUp className="h-4 w-4 text-green-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.users}</div>
-            <p className="text-xs text-muted-foreground">Registered accounts</p>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-zinc-500">Task Payouts:</span>
+                <span className="font-bold text-white">₹{(stats.totalTaskEarnings || 0) / 100}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm">
+                <span className="text-zinc-500">Game Wins:</span>
+                <span className="font-bold text-amber-500">₹{(stats.totalGameEarnings || 0) / 100}</span>
+              </div>
+            </div>
           </CardContent>
         </Card>
         <Card className="border-white/10 bg-card">

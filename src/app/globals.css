@@ -28,24 +28,23 @@
 }
 
 :root {
-  /* Dark theme by default for premium feel */
-  --background: #09090b;
+  /* Premium Dark Mode Palette (Void & Gold) */
+  --background: #020202;
   --foreground: #fafafa;
 
-  --card: #18181b;
+  --card: #09090b;
   --card-foreground: #fafafa;
 
   --popover: #09090b;
   --popover-foreground: #fafafa;
 
-  --primary: #f59e0b;
-  /* Amber/Gold */
-  --primary-foreground: #171717;
+  --primary: #fbbf24; /* Amber 400 - Rich Gold */
+  --primary-foreground: #000000;
 
-  --secondary: #27272a;
+  --secondary: #18181b; /* Zinc 900 */
   --secondary-foreground: #fafafa;
 
-  --muted: #27272a;
+  --muted: #18181b;
   --muted-foreground: #a1a1aa;
 
   --accent: #27272a;
@@ -56,9 +55,38 @@
 
   --border: #27272a;
   --input: #27272a;
-  --ring: #f59e0b;
+  --ring: #fbbf24;
 
-  --radius: 0.5rem;
+  --radius: 0.75rem; /* Larger modern radius */
+}
+
+/* Glassmorphism Utilities */
+.glass {
+  background: rgba(9, 9, 11, 0.6);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.glass-card {
+  background: rgba(24, 24, 27, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.text-gradient-gold {
+  background: linear-gradient(to right, #f59e0b, #fbbf24, #f59e0b);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  background-size: 200% auto;
+  animation: shine 4s linear infinite;
+}
+
+@keyframes shine {
+  to {
+    background-position: 200% center;
+  }
 }
 
 body {

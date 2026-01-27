@@ -5,7 +5,9 @@ service cloud.firestore {
     
     // Helper: Check if user is an admin
     function isAdmin() {
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      return request.auth != null && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+             get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
 
     // User Rules
@@ -47,9 +49,6 @@ service cloud.firestore {
 
     // Card Game Entries
     match /cardGameEntries/{entryId} {
-      // Allow read if user is admin OR if the logged in user is the owner
-      // We check request.auth.uid since entryId usually contains it, 
-      // but checking the stored userId field is more reliable.
       allow read: if isAdmin() || (request.auth != null && (resource == null || resource.data.userId == request.auth.uid));
       allow create: if request.auth != null && request.resource.data.userId == request.auth.uid;
       allow update: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
@@ -65,7 +64,7 @@ service cloud.firestore {
     // Transactions
     match /transactions/{transactionId} {
       allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
-      allow create: if isAdmin(); // Mostly server-side or admin
+      allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
@@ -74,19 +73,21 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Settings (Global Config) - Strict Control
-    // Only allow READs from client. WRITEs must go through Server API (Admin SDK).
+    // Activities (Unified History)
+    match /activities/{activityId} {
+      allow read: if isAdmin() || (request.auth != null && resource.data.userId == request.auth.uid);
+      allow write: if isAdmin();
+    }
+
+    // Settings (Global Config)
     match /settings/{docId} {
       allow read: if request.auth != null; 
     }
-
 
     // Verification Codes
     match /verification_codes/{email} {
       allow read, write: if true; 
     }
 
-
   }
 }
-

@@ -12,8 +12,6 @@ export default function AdSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [adConfig, setAdConfig] = useState({
-    monetagDirectLink: "",
-    monetagZoneTag: '<script src="..."></script>',
     bannerAdCode: ""
   });
 
@@ -61,35 +59,23 @@ export default function AdSettingsPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold tracking-tight">Ad Management</h1>
-        <p className="text-muted-foreground">Configure Monetag and other ad networks.</p>
+        <p className="text-muted-foreground">Configure ad networks and banner codes.</p>
       </div>
 
       <Card className="bg-white/5 border-white/10">
         <CardHeader>
-          <CardTitle className="text-amber-500">Monetag Configuration</CardTitle>
-          <CardDescription>Enter your zone IDs and direct links from Monetag Dashboard.</CardDescription>
+          <CardTitle className="text-amber-500">Banner Ads</CardTitle>
+          <CardDescription>Enter custom banner ad HTML/Script codes.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <label className="text-sm font-bold">Direct Link URL (for "Watch Ad" Tasks)</label>
-            <Input
-              placeholder="https://..."
-              value={adConfig.monetagDirectLink}
-              onChange={(e) => setAdConfig({ ...adConfig, monetagDirectLink: e.target.value })}
-              className="bg-black/20 border-white/10"
-            />
-            <p className="text-[10px] text-muted-foreground">Used in AdModal task buttons.</p>
-          </div>
-
-          <div className="space-y-2">
-            <label className="text-sm font-bold">Zone Tag / Header Script (Vignette/Push)</label>
+            <label className="text-sm font-bold">Banner Ad Code</label>
             <textarea
-              placeholder='<script src="https://alwingulla.com/..."></script>'
-              value={adConfig.monetagZoneTag}
-              onChange={(e) => setAdConfig({ ...adConfig, monetagZoneTag: e.target.value })}
+              placeholder='<div id="banner">...</div>'
+              value={adConfig.bannerAdCode}
+              onChange={(e) => setAdConfig({ ...adConfig, bannerAdCode: e.target.value })}
               className="w-full min-h-[100px] rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
             />
-            <p className="text-[10px] text-muted-foreground">This script will be injected into the website header.</p>
           </div>
         </CardContent>
       </Card>

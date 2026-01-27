@@ -2,32 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, doc, getDoc, setDoc, addDoc, deleteDoc, serverTimestamp, query, orderBy, Timestamp, onSnapshot, where } from "firebase/firestore";
+import { collection, doc, setDoc, addDoc, deleteDoc, serverTimestamp, query, onSnapshot, where, deleteField, getDocs, writeBatch } from "firebase/firestore";
 import { toast } from "sonner";
-import { Loader2, Plus, Edit, Trash2, Play, Image as ImageIcon, Timer, Sparkles } from "lucide-react";
+import { Plus, Edit, Trash2, Image as ImageIcon, Timer, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Modal } from "@/components/ui/modal";
 
 export default function AdminGamesPage() {
-  const [activeTab, setActiveTab] = useState<'active' | 'automation'>('active');
   const [games, setGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<any>(null);
   const [saving, setSaving] = useState(false);
-
-  // Automation State
-  const [autoEnabled, setAutoEnabled] = useState(false);
-  const [autoSettings, setAutoSettings] = useState<{
-    free: Record<string, number>,
-    premium: Record<string, number>
-  }>({
-    free: { "24h": 100, "12h": 80, "6h": 60, "3h": 40, "2h": 30, "1h": 20, "30m": 10, "5m": 5, "1m": 2 },
-    premium: { "24h": 200, "12h": 160, "6h": 120, "3h": 80, "2h": 60, "1h": 40, "30m": 20, "5m": 10, "1m": 5 }
-  });
 
   const DURATIONS = ["24h", "12h", "6h", "3h", "2h", "1h", "30m", "5m", "1m"];
 
@@ -58,22 +46,6 @@ export default function AdminGamesPage() {
       setGames(data);
       setLoading(false);
     });
-
-    // 2. Load Automation Settings
-    const loadSettings = async () => {
-      try {
-        const docRef = doc(db, "settings", "gameAutomation");
-        const settingsDoc = await getDoc(docRef);
-        if (settingsDoc.exists()) {
-          const data = settingsDoc.data();
-          if (data && data.settings) {
-            setAutoEnabled(data.isEnabled || false);
-            setAutoSettings(data.settings);
-          }
-        }
-      } catch (e) { console.error(e); }
-    };
-    loadSettings();
 
     return () => unsubGames();
   }, []);
@@ -134,7 +106,6 @@ export default function AdminGamesPage() {
     setIsModalOpen(true);
   };
 
-  // ... existing DURATIONS_MAP ...
   const DURATIONS_MAP: Record<string, number> = {
     "24h": 24 * 3600,
     "12h": 12 * 3600,
@@ -152,28 +123,86 @@ export default function AdminGamesPage() {
     setSaving(true);
     try {
       const durationSeconds = DURATIONS_MAP[formData.duration] || 3600;
-      // If Auto, force winnerIndex to -1 (pending) if creating new? Or keep 0?
-      // Better to keep 0 as fallback or -1. Cron handles fallback.
 
       const payload = {
         ...formData,
         duration: durationSeconds,
-        expiryLabel: formData.duration,
         updatedAt: serverTimestamp()
       };
 
+      // CRITICAL FIX: If Auto Mode, reset winnerIndex to -1 so backend calculates it.
+      if (formData.winnerSelection === 'auto') {
+        payload.winnerIndex = -1;
+      }
+
       if (editingGame) {
-        const updateData: any = { ...payload };
-        // If activating a game that has no start time, set it now
-        if (formData.status === 'active' && !editingGame.startTime) {
-          updateData.startTime = serverTimestamp();
+        // Detect "Convert to Manual" Action
+        const isConvertingFromAuto = editingGame.winnerSelection === 'auto' && formData.winnerSelection === 'manual';
+
+        if (isConvertingFromAuto) {
+          // 1. Update Old Game: Make Manual, Remove 'expiryLabel' (detaches from slot)
+          const updateData: any = {
+            ...payload,
+            expiryLabel: deleteField(),
+            winnerSelection: 'manual',
+            generatedBy: 'admin_override'
+          };
+          if (formData.status === 'active' && !editingGame.startTime) {
+            updateData.startTime = serverTimestamp();
+          }
+          await setDoc(doc(db, "cardGames", editingGame.id), updateData, { merge: true });
+
+          // 2. Refill Slot: Create New Auto Game
+          const imgs = Array.from({ length: 24 }, (_, i) => `/images/cards/${i + 1}.png`);
+          const shuffled = imgs.sort(() => 0.5 - Math.random()).slice(0, 4);
+
+          const refillPayload = {
+            ...formData,
+            question: "Which card is the winner?",
+            winnerIndex: -1,
+            winnerSelection: 'auto',
+            cardImages: shuffled,
+            startTime: serverTimestamp(),
+            createdAt: serverTimestamp(),
+            duration: durationSeconds,
+            expiryLabel: formData.duration, // Restore label for new game
+            status: 'active'
+          };
+          await addDoc(collection(db, "cardGames"), refillPayload);
+
+          toast.success("Converted to Manual & Refilled Slot!");
+
+        } else {
+          // Standard Update
+          const updateData: any = { ...payload, expiryLabel: formData.duration };
+          if (formData.status === 'active' && !editingGame.startTime) {
+            updateData.startTime = serverTimestamp();
+          }
+          await setDoc(doc(db, "cardGames", editingGame.id), updateData, { merge: true });
+          toast.success("Game updated!");
+
+          // NEW: If manual and winner is set, trigger payouts via API
+          if (formData.winnerSelection === 'manual' && formData.winnerIndex !== -1) {
+            fetch("/api/admin/games/card/award", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                gameId: editingGame.id,
+                winnerIndex: formData.winnerIndex,
+                startTime: editingGame.startTime?.seconds || Math.floor(Date.now() / 1000)
+              })
+            }).then(r => r.json()).then(data => {
+              if (data.winners > 0) toast.success(`Paid ${data.winners} winners!`);
+            }).catch(console.error);
+          }
         }
-        await setDoc(doc(db, "cardGames", editingGame.id), updateData, { merge: true });
-        toast.success("Game updated!");
+
       } else {
+        // Create New
         await addDoc(collection(db, "cardGames"), {
           ...payload,
-          startTime: serverTimestamp(), // Critical for manual games to be playable
+          expiryLabel: formData.duration,
+          startTime: serverTimestamp(),
           createdAt: serverTimestamp(),
         });
         toast.success("New game added!");
@@ -187,135 +216,74 @@ export default function AdminGamesPage() {
     }
   };
 
-  // ... rest of functions ...
   const handleDelete = async (id: string) => {
-    if (confirm("Delete this game?")) {
-      await deleteDoc(doc(db, "cardGames", id));
-      toast.success("Deleted");
+    if (confirm("Permanently delete this game and all participant history?")) {
+      try {
+        // 1. Delete Game Document
+        await deleteDoc(doc(db, "cardGames", id));
+
+        // 2. Delete All Entries (for history cleanup)
+        const q = query(collection(db, "cardGameEntries"), where("gameId", "==", id));
+        const snapshot = await getDocs(q);
+
+        if (!snapshot.empty) {
+          const batch = writeBatch(db);
+          snapshot.docs.forEach((doc) => {
+            batch.delete(doc.ref);
+          });
+          await batch.commit();
+        }
+
+        toast.success("Game & History Deleted");
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to delete fully");
+      }
     }
-  };
-
-  const handleSaveAutomation = async () => {
-    // ... existing ... 
-    setSaving(true);
-    try {
-      const response = await fetch("/api/admin/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          setting: "gameAutomation",
-          data: { isEnabled: autoEnabled, settings: autoSettings }
-        })
-      });
-      if (!response.ok) throw new Error("Save failed");
-      toast.success("Automation Settings Saved!");
-    } catch (e: any) { toast.error(e.message); } finally { setSaving(false); }
-  };
-
-  const updateSetting = (type: 'free' | 'premium', duration: string, val: number) => {
-    setAutoSettings(prev => ({
-      ...prev,
-      [type]: { ...prev[type], [duration]: val }
-    }));
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight text-white">Game Management</h1>
-        <div className="flex gap-2">
-          {/* ... tabs ... */}
-          <Button variant={activeTab === 'active' ? 'default' : 'outline'} onClick={() => setActiveTab('active')} className={activeTab === 'active' ? "bg-amber-500 text-black" : "border-white/10"}>Active Games</Button>
-          <Button variant={activeTab === 'automation' ? 'default' : 'outline'} onClick={() => setActiveTab('automation')} className={activeTab === 'automation' ? "bg-amber-500 text-black" : "border-white/10"}>Automation</Button>
-        </div>
       </div>
 
-      {activeTab === 'active' ? (
-        <>
-          <div className="flex justify-end">
-            <Button onClick={() => handleOpenModal()} className="bg-amber-600 hover:bg-amber-700 text-black font-bold">
-              <Plus className="mr-2 h-4 w-4" /> Add New Game
-            </Button>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-card/50 backdrop-blur-sm overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="border-white/10 hover:bg-transparent">
-                  <TableHead className="text-muted-foreground font-bold">Question</TableHead>
-                  <TableHead className="text-muted-foreground font-bold text-center">Mode</TableHead>
-                  <TableHead className="text-muted-foreground font-bold text-center">Price</TableHead>
-                  <TableHead className="text-muted-foreground font-bold text-center">Status</TableHead>
-                  <TableHead className="text-muted-foreground font-bold text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {games.map((game) => (
-                  <TableRow key={game.id} className="border-white/5 hover:bg-white/5">
-                    <TableCell>{game.question} {game.isPremium && <span className="text-amber-500 text-xs ml-2 border border-amber-500 px-1 rounded">PREMIUM</span>}</TableCell>
-                    <TableCell className="text-center font-mono text-xs uppercase text-blue-400">{game.winnerSelection === 'auto' ? 'Auto (Low)' : 'Manual'}</TableCell>
-                    <TableCell className="text-center text-amber-500 font-bold">{game.price}</TableCell>
-                    <TableCell className="text-center">
-                      <span className={`text-[10px] px-2 py-1 rounded-full ${game.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
-                        {game.status === 'expired' ? 'INACTIVE' : game.status?.toUpperCase()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Button size="sm" variant="ghost" className="text-blue-500" onClick={() => handleOpenModal(game)}><Edit className="w-4 h-4" /></Button>
-                      <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleDelete(game.id)}><Trash2 className="w-4 h-4" /></Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </>
-      ) : (
-        // ... Automation Tab (Keep Existing, just abbreviated for replace tool) ...
-        <div className="space-y-6">
-          <Card className="bg-white/5 border-white/10">
-            <CardHeader>
-              <CardTitle className="text-amber-500">Automation Configuration</CardTitle>
-              <CardDescription>Set automatic coin rewards for expiring games per timeframe.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="flex items-center gap-4 p-4 rounded-lg bg-black/20 border border-white/5">
-                <label className="font-bold">Enable Automation</label>
-                <input type="checkbox" checked={autoEnabled} onChange={(e) => setAutoEnabled(e.target.checked)} className="w-6 h-6 accent-amber-500" />
-              </div>
-              <div className="grid md:grid-cols-2 gap-8">
-                <div className="space-y-4">
-                  <h3 className="font-bold text-green-400 border-b border-white/10 pb-2">Free User Rewards</h3>
-                  {DURATIONS.map(d => (
-                    <div key={d} className="flex items-center justify-between">
-                      <span className="text-sm font-medium w-16">{d}</span>
-                      <Input type="number" value={autoSettings.free[d] ?? 0} onChange={(e) => updateSetting('free', d, Number(e.target.value))} className="h-8 w-32 bg-white/5 border-white/10" />
-                    </div>
-                  ))}
-                </div>
-                <div className="space-y-4">
-                  <h3 className="font-bold text-amber-400 border-b border-white/10 pb-2">Premium User Rewards</h3>
-                  {DURATIONS.map(d => (
-                    <div key={d} className="flex items-center justify-between">
-                      <span className="text-sm font-medium w-16">{d}</span>
-                      <Input type="number" value={autoSettings.premium[d] ?? 0} onChange={(e) => updateSetting('premium', d, Number(e.target.value))} className="h-8 w-32 bg-white/5 border-white/10" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <Button onClick={handleSaveAutomation} disabled={saving} className="w-full bg-amber-500 text-black font-bold">{saving ? "Saving..." : "Save Automation Settings"}</Button>
-              <div className="pt-8 border-t border-white/10">
-                {/* Keep existing Manual Override buttons */}
-                <h3 className="font-bold text-lg mb-4 text-blue-400">Manual Override</h3>
-                <p className="text-muted-foreground text-sm mb-4">Force run automation now.</p>
-                <Button variant="outline" className="w-full border-blue-500 text-blue-400 hover:bg-blue-500/10" onClick={async () => {
-                  setSaving(true); try { const res = await fetch('/api/cron/daily-game?key=' + process.env.NEXT_PUBLIC_FIREBASE_API_KEY); if (res.ok) toast.success("Automation Ran!"); else toast.error("Failed"); } catch (e) { toast.error("Error"); } finally { setSaving(false); }
-                }}><Play className="mr-2 h-4 w-4" /> Run Automation</Button>
-                <Button variant="outline" className="w-full mt-4 border-red-500 text-red-500 hover:bg-red-500/10" onClick={async () => { if (!confirm("Delete old data?")) return; setSaving(true); try { await fetch('/api/admin/cleanup', { method: 'POST' }); toast.success("Cleaned"); } catch (e) { toast.error("Error"); } finally { setSaving(false); } }}><Trash2 className="mr-2 h-4 w-4" /> Clean Database</Button>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <div className="flex justify-end">
+        <Button onClick={() => handleOpenModal()} className="bg-amber-600 hover:bg-amber-700 text-black font-bold">
+          <Plus className="mr-2 h-4 w-4" /> Add New Game
+        </Button>
+      </div>
+      <div className="rounded-xl border border-white/10 bg-card/50 backdrop-blur-sm overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-white/10 hover:bg-transparent">
+              <TableHead className="text-muted-foreground font-bold">Question</TableHead>
+              <TableHead className="text-muted-foreground font-bold text-center">Mode</TableHead>
+              <TableHead className="text-muted-foreground font-bold text-center">Price</TableHead>
+              <TableHead className="text-muted-foreground font-bold text-center">Status</TableHead>
+              <TableHead className="text-muted-foreground font-bold text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {games.map((game) => (
+              <TableRow key={game.id} className="border-white/5 hover:bg-white/5">
+                <TableCell>{game.question} {game.isPremium && <span className="text-amber-500 text-xs ml-2 border border-amber-500 px-1 rounded">PREMIUM</span>}</TableCell>
+                <TableCell className="text-center font-mono text-xs uppercase text-blue-400">{game.winnerSelection === 'auto' ? 'Auto (Low)' : 'Manual'}</TableCell>
+                <TableCell className="text-center text-amber-500 font-bold">{game.price}</TableCell>
+                <TableCell className="text-center">
+                  <span className={`text-[10px] px-2 py-1 rounded-full ${game.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                    {game.status === 'expired' ? 'INACTIVE' : game.status?.toUpperCase()}
+                  </span>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button size="sm" variant="ghost" className="text-blue-500" onClick={() => handleOpenModal(game)}><Edit className="w-4 h-4" /></Button>
+                  <Button size="sm" variant="ghost" className="text-red-500" onClick={() => handleDelete(game.id)}><Trash2 className="w-4 h-4" /></Button>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* Modal - Updated for Winner Settings & Stats */}
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingGame ? "Edit Game" : "New Game"}>
@@ -386,11 +354,21 @@ export default function AdminGamesPage() {
             <div className="grid grid-cols-2 gap-4">
               {formData.cardImages.map((img, idx) => {
                 const count = editingGame ? (stats[editingGame.id]?.[idx] || 0) : 0;
+                // Calculate Prediction (Least Bought)
+                const currentStats = editingGame ? (stats[editingGame.id] || [0, 0, 0, 0]) : [0, 0, 0, 0];
+                // Filter out non-numbers if any
+                const validStats = currentStats.map(n => Number(n) || 0);
+                const minVal = Math.min(...validStats);
+                const isPredicted = count === minVal && formData.winnerSelection === 'auto';
+
                 return (
-                  <div key={idx} className="space-y-1 p-2 rounded bg-black/20 border border-white/5">
+                  <div key={idx} className={`space-y-1 p-2 rounded bg-black/20 border transition-all ${isPredicted ? 'border-green-500/50 bg-green-500/10' : 'border-white/5'}`}>
                     <div className="flex justify-between items-center">
                       <span className="text-[10px] uppercase font-bold text-muted-foreground">Card {idx + 1}</span>
-                      <span className="text-[10px] font-bold text-blue-400">{count} Buyers</span>
+                      <div className="flex flex-col items-end">
+                        <span className="text-[10px] font-bold text-blue-400">{count} Buyers</span>
+                        {isPredicted && <span className="text-[9px] font-black text-green-400 animate-pulse">PREDICTED WINNER</span>}
+                      </div>
                     </div>
 
                     <div className="flex gap-2">
@@ -429,7 +407,6 @@ export default function AdminGamesPage() {
     </div>
   );
 }
-
 
 function AdminTimer({ game }: { game: any }) {
   const [remains, setRemains] = useState(0);

@@ -1,21 +1,20 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Coins, IndianRupee, Trophy, Users, ArrowUpRight, Loader2, Timer, Plus } from "lucide-react";
+import { Coins, IndianRupee, Trophy, Users, ArrowUpRight, Loader2, Timer, Plus, Sparkles, TrendingUp, Crown } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReferralCard } from "@/components/features/ReferralCard";
 import { DepositModal } from "@/components/features/DepositModal";
 import { db } from "@/lib/firebase";
-import { doc, onSnapshot, query, collection, where, orderBy, limit } from "firebase/firestore";
+import { doc, onSnapshot, query, collection, where, limit } from "firebase/firestore";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-  const [userData, setUserData] = useState<any>(null);
-  const [recentTasks, setRecentTasks] = useState<any[]>([]);
+  const { user, userData, loading: authLoading } = useAuth();
+  const [recentActivities, setRecentActivities] = useState<any[]>([]);
   const [activeGames, setActiveGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDepositOpen, setIsDepositOpen] = useState(false);
@@ -23,57 +22,31 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
 
-    // 1. Listen to user data
-    const unsubUser = onSnapshot(doc(db, "users", user.uid), (doc) => {
-      setUserData(doc.data());
-      setLoading(false);
-    });
+    const activitiesQuery = query(collection(db, "activities"), where("userId", "==", user.uid), limit(20));
+    const unsubActivities = onSnapshot(activitiesQuery, (snap) => {
+      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      const sorted = data.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).slice(0, 4);
+      setRecentActivities(sorted);
+    }, (err) => console.error("Activities Snapshot Error:", err));
 
-    // 2. Listen to recent task submissions
-    const submissionsQuery = query(
-      collection(db, "taskSubmissions"),
-      where("userId", "==", user.uid),
-      limit(20) // Fetch a few more to allow client-side sorting
-    );
-    const unsubSubmissions = onSnapshot(submissionsQuery, (snap) => {
-      const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Sort client-side to avoid needing a Firestore composite index
-      const sorted = data
-        .sort((a: any, b: any) => (b.completedAt?.seconds || 0) - (a.completedAt?.seconds || 0))
-        .slice(0, 4);
-      setRecentTasks(sorted);
-    });
-
-    // 3. Listen to active games
     const gamesQuery = query(collection(db, "cardGames"), where("status", "==", "active"));
     const unsubGames = onSnapshot(gamesQuery, (snap) => {
       const allActive = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      setActiveGames(allActive);
+    }, (err) => console.error("Games Snapshot Error:", err));
 
-      // Filter out 'Ghost' games: Truly ended games that are still marked active
-      // We show games if:
-      // 1. Not started yet (startTime is null)
-      // 2. OR Started but not yet 10 minutes past duration
-      const now = Math.floor(Date.now() / 1000);
-      const filtered = allActive.filter(game => {
-        if (!game.startTime) return true; // Show preparing games
-        const end = game.startTime.seconds + (game.duration || 60);
-        return now < end + 600; // Show for 10 mins after end
-      });
-
-      setActiveGames(filtered);
-    });
-
-    return () => {
-      unsubUser();
-      unsubSubmissions();
-      unsubGames();
-    };
+    return () => { unsubActivities(); unsubGames(); };
   }, [user]);
 
-  if (loading) {
+  // Sync loading state with auth
+  useEffect(() => {
+    if (!authLoading) setLoading(false);
+  }, [authLoading]);
+
+  if (loading || authLoading) {
     return (
-      <div className="flex h-[50vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-amber-500" />
+      <div className="flex h-[70vh] items-center justify-center">
+        <Loader2 className="h-10 w-10 animate-spin text-amber-500" />
       </div>
     );
   }
@@ -81,166 +54,161 @@ export default function DashboardPage() {
   const coins = userData?.coins || 0;
   const balance = coins / 100;
 
+  const container = {
+    hidden: { opacity: 0 },
+    show: { opacity: 1, transition: { staggerChildren: 0.1 } }
+  };
+
+  const item = {
+    hidden: { y: 20, opacity: 0 },
+    show: { y: 0, opacity: 1 }
+  };
+
   return (
-    <div className="space-y-6 sm:space-y-8">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Welcome back, {userData?.name || "Earner"}!</p>
+    <motion.div variants={container} initial="hidden" animate="show" className="space-y-8 max-w-7xl mx-auto">
+
+      {/* Hero Header */}
+      <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/5">
+        <div className="space-y-2">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
+            Dashboard
+          </h1>
+          <p className="text-zinc-400 text-lg">
+            Welcome back, <span className="text-amber-500 font-bold">{userData?.name || "Earner"}</span>. Ready to win?
+          </p>
         </div>
-        <Link href="/wallet" className="w-full sm:w-auto">
-          <Button variant="premium" size="sm" className="w-full sm:w-auto">
-            Withdraw Funds <ArrowUpRight className="ml-2 h-4 w-4" />
+        <Link href="/wallet">
+          <Button className="bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest px-8 py-6 rounded-xl shadow-[0_0_20px_-5px_rgba(245,158,11,0.5)] transition-all hover:scale-105 active:scale-95">
+            Withdraw Funds <ArrowUpRight className="ml-2 h-5 w-5" />
           </Button>
         </Link>
-      </div>
+      </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card className="bg-card/50 backdrop-blur-sm border-white/5">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Coins
-            </CardTitle>
-            <div className="flex items-center gap-2">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-6 w-6 rounded-full bg-amber-500/10 text-amber-500 hover:bg-amber-500 hover:text-black"
-                onClick={() => setIsDepositOpen(true)}
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-              <Coins className="h-4 w-4 text-amber-500" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{coins.toLocaleString()}</div>
-            <p className="text-xs text-muted-foreground">
-              Current balance
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/50 backdrop-blur-sm border-white/5">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Wallet Balance
-            </CardTitle>
-            <IndianRupee className="h-4 w-4 text-green-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{balance.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
-              Min. withdraw ₹100
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/50 backdrop-blur-sm border-white/5">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Earned
-            </CardTitle>
-            <Trophy className="h-4 w-4 text-blue-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{(userData?.totalEarned || 0) / 100}</div>
-            <p className="text-xs text-muted-foreground">
-              Life-time earnings
-            </p>
-          </CardContent>
-        </Card>
-        <Card className="bg-card/50 backdrop-blur-sm border-white/5">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Status
-            </CardTitle>
-            <Users className="h-4 w-4 text-purple-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold uppercase text-xs tracking-widest text-amber-500">
-              {userData?.isPremium ? "Premium Member" : "Free Member"}
-            </div>
-            <p className="text-xs text-muted-foreground">
-              {userData?.isPremium ? "Full access active" : "Upgrade for bonus"}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Stats Grid */}
+      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard
+          title="Total Coins"
+          value={coins.toLocaleString()}
+          sub="Current Balance"
+          icon={Coins}
+          color="text-amber-500"
+          action={() => setIsDepositOpen(true)}
+        />
+        <StatsCard
+          title="Task Earnings"
+          value={`₹${((userData?.taskEarnings || 0) / 100).toFixed(2)}`}
+          sub="From Activities"
+          icon={TrendingUp}
+          color="text-blue-500"
+        />
+        <StatsCard
+          title="Game Wins"
+          value={`₹${((userData?.gameEarnings || 0) / 100).toFixed(2)}`}
+          sub="From Card Arena"
+          icon={Trophy}
+          color="text-amber-500"
+        />
+        <StatsCard
+          title="Wallet Balance"
+          value={`₹${balance.toFixed(2)}`}
+          sub="Min. withdraw ₹100"
+          icon={IndianRupee}
+          color="text-green-500"
+        />
+      </motion.div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-1 md:col-span-2 lg:col-span-4 bg-card/50 border-white/5">
-          <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {recentTasks.length > 0 ? (
-              <div className="space-y-4">
-                {recentTasks.map((task) => (
-                  <div key={task.id} className="flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="h-2 w-2 rounded-full bg-green-500" />
-                      <div>
-                        <p className="text-sm font-medium">Earned from Task</p>
-                        <p className="text-xs text-muted-foreground">{new Date(task.completedAt?.seconds * 1000).toLocaleDateString()}</p>
-                      </div>
-                    </div>
-                    <div className="text-sm font-bold text-amber-500">+{task.earnedCoins} Coins</div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        {/* Recent Activity */}
+        <motion.div variants={item} className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-amber-500" /> Recent Activity
+            </h2>
+            <Link href="/tasks" className="text-xs font-bold text-amber-500 hover:text-white transition-colors">VIEW ALL</Link>
+          </div>
+
+          <div className="bg-black/20 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden p-2 space-y-2">
+            {recentActivities.length > 0 ? recentActivities.map((activity) => (
+              <div key={activity.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all hover:translate-x-1 group">
+                <div className="flex items-center gap-4">
+                  <div className={cn(
+                    "h-10 w-10 rounded-full flex items-center justify-center border transition-colors",
+                    activity.type === 'game_win'
+                      ? "bg-amber-500/10 border-amber-500/20 group-hover:border-amber-500/50"
+                      : "bg-green-500/10 border-green-500/20 group-hover:border-green-500/50"
+                  )}>
+                    {activity.type === 'game_win'
+                      ? <Trophy className="h-5 w-5 text-amber-500" />
+                      : <Coins className="h-5 w-5 text-green-500" />
+                    }
                   </div>
-                ))}
+                  <div>
+                    <p className="font-bold text-sm text-white group-hover:text-amber-400 transition-colors">{activity.title}</p>
+                    <p className="text-xs text-zinc-500">{new Date(activity.createdAt?.seconds * 1000).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className={cn(
+                  "text-lg font-black",
+                  activity.type === 'game_win' ? "text-amber-500" : "text-white"
+                )}>+{activity.amount}</div>
               </div>
-            ) : (
-              <div className="py-8 text-center text-sm text-muted-foreground">
-                No recent activity. Start earning now!
-              </div>
+            )) : (
+              <div className="py-12 text-center text-zinc-500">No activity yet. Start earning!</div>
             )}
-          </CardContent>
-        </Card>
-        <div className="col-span-1 md:col-span-2 lg:col-span-3 space-y-4">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-            <span className="flex h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-            Live Games ({activeGames.length})
-          </h3>
+          </div>
+        </motion.div>
+
+        {/* Live Games & Bonus */}
+        <motion.div variants={item} className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-bold flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-500" /> Live Action
+            </h2>
+            <span className="text-xs font-bold bg-red-500/10 text-red-500 px-2 py-1 rounded-full animate-pulse">{activeGames.length} ONLINE</span>
+          </div>
 
           <div className="space-y-3">
             {activeGames.length === 0 ? (
-              <Card className="bg-card/30 border-dashed border-white/10 p-6 text-center">
-                <p className="text-xs text-muted-foreground">No active sessions right now.</p>
-              </Card>
+              <div className="p-8 border border-dashed border-white/10 rounded-2xl text-center text-zinc-500">
+                No active games.
+              </div>
             ) : (
-              activeGames.map((game) => (
-                <DashboardGameCard key={game.id} game={game} />
-              ))
+              activeGames.slice(0, 3).map(game => <DashboardGameCard key={game.id} game={game} />)
             )}
           </div>
 
           <ReferralCard code={userData?.referralCode || "INVITE"} />
-
-          <Card className="bg-card/50 border-white/5">
-            <CardHeader>
-              <CardTitle>Daily Bonus</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center space-y-4 py-4">
-                <div className="text-4xl animate-bounce">🎁</div>
-                <p className="text-center text-sm text-muted-foreground">
-                  Get 20% commission on every friend's task earnings!
-                </p>
-                <Link href="/tasks" className="w-full">
-                  <Button variant="outline" className="w-full">
-                    Go to Tasks
-                  </Button>
-                </Link>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        </motion.div>
       </div>
 
-      <DepositModal
-        isOpen={isDepositOpen}
-        onClose={() => setIsDepositOpen(false)}
-      />
-    </div>
+      <DepositModal isOpen={isDepositOpen} onClose={() => setIsDepositOpen(false)} />
+    </motion.div>
   );
+}
+
+function StatsCard({ title, value, sub, icon: Icon, color, action }: any) {
+  return (
+    <div className="relative overflow-hidden rounded-2xl bg-black/40 backdrop-blur-xl border border-white/5 p-6 group transition-all duration-500 hover:border-amber-500/30 hover:-translate-y-1">
+      <div className={`absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity ${color}`}>
+        <Icon className="h-24 w-24 -mr-4 -mt-4 transform rotate-12" />
+      </div>
+      <div className="relative z-10 flex flex-col justify-between h-full">
+        <div className="flex justify-between items-start mb-4">
+          <h3 className="text-sm font-bold text-zinc-500 uppercase tracking-wider">{title}</h3>
+          {action && (
+            <button onClick={action} className="h-8 w-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-500 hover:bg-amber-500 hover:text-black transition-colors">
+              <Plus className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+        <div>
+          <div className={cn("text-3xl font-black tracking-tight", color)}>{value}</div>
+          <p className="text-xs text-zinc-400 mt-1 font-medium">{sub}</p>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 function DashboardGameCard({ game }: { game: any }) {
@@ -260,39 +228,17 @@ function DashboardGameCard({ game }: { game: any }) {
   }, [game.startTime, game.duration]);
 
   return (
-    <Card className="bg-gradient-to-br from-amber-500/10 to-amber-600/5 border-amber-500/10 overflow-hidden relative group transition-all hover:border-amber-500/40">
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-bold truncate pr-16 bg-gradient-to-r from-amber-200 to-white bg-clip-text text-transparent">
-            {game.question}
-          </CardTitle>
-          <div className={cn(
-            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter shadow-lg absolute top-3 right-3",
-            dashTime > 0 ? "bg-red-500 text-white animate-pulse" : "bg-zinc-800 text-zinc-500"
-          )}>
-            {dashTime > 0 ? "LIVE" : "ENDED"}
-          </div>
+    <Link href={`/dashboard/cards/${game.id}`}>
+      <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-zinc-900 to-black border border-white/5 p-4 group transition-all hover:border-amber-500/50">
+        <div className="flex justify-between items-center mb-2">
+          <span className="text-sm font-bold text-white group-hover:text-amber-500 transition-colors line-clamp-1">{game.question}</span>
+          {dashTime > 0 && <span className="text-[10px] font-mono text-red-500 animate-pulse flex items-center gap-1"><Timer className="h-3 w-3" /> {dashTime}s</span>}
         </div>
-      </CardHeader>
-      <CardContent>
         <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-1 text-amber-500 font-bold text-sm">
-              <Coins className="h-3 w-3" /> {game.price}
-            </div>
-            {dashTime > 0 && (
-              <div className="flex items-center gap-1 text-xs text-red-400 font-mono">
-                <Timer className="h-3 w-3" /> {dashTime}s
-              </div>
-            )}
-          </div>
-          <Link href={`/dashboard/cards/${game.id}`}>
-            <Button variant="premium" size="sm" className="h-9 px-5 text-[10px] font-black uppercase transition-transform active:scale-95">
-              {dashTime > 0 ? "Join Game" : "View Result"} <ArrowUpRight className="ml-1 h-3 w-3" />
-            </Button>
-          </Link>
+          <span className="text-xs font-bold text-amber-500 flex items-center gap-1"><Coins className="h-3 w-3" /> {game.price}</span>
+          <div className="bg-white/10 hover:bg-white/20 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider">PLAY</div>
         </div>
-      </CardContent>
-    </Card>
-  );
+      </div>
+    </Link>
+  )
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
-import { Timestamp } from "firebase-admin/firestore";
+import { Timestamp, FieldValue } from "firebase-admin/firestore";
 
 export async function POST(req: Request) {
   try {
@@ -29,22 +29,36 @@ export async function POST(req: Request) {
       const userRef = db.collection("users").doc(userId);
       const newSubmissionRef = db.collection("taskSubmissions").doc();
 
-      // 3. Update User Balance
+      // 3. Update User Balance (STRICT CASTING)
+      const rewardNum = Number(reward);
       transaction.update(userRef, {
-        coins: admin.firestore.FieldValue.increment(reward),
-        totalEarned: admin.firestore.FieldValue.increment(reward)
+        coins: admin.firestore.FieldValue.increment(rewardNum),
+        totalEarned: admin.firestore.FieldValue.increment(rewardNum),
+        taskEarnings: admin.firestore.FieldValue.increment(rewardNum)
       });
 
       // 4. Create Submission Record
       transaction.set(newSubmissionRef, {
         userId,
         taskId,
-        earnedCoins: reward,
+        earnedCoins: rewardNum,
         status: "approved",
-        completedAt: Timestamp.now(),
+        completedAt: admin.firestore.Timestamp.now(),
       });
 
-      return { success: true, newCoins: reward };
+      // 5. Record Activity (Unified History)
+      const activityRef = db.collection("activities").doc();
+      transaction.set(activityRef, {
+        userId,
+        type: 'task',
+        amount: rewardNum,
+        title: "Task Completed ✅",
+        metadata: { taskId },
+        createdAt: admin.firestore.Timestamp.now()
+      });
+
+      console.log(`[TASK] Success for User ${userId}, Task ${taskId}, Earned: ${rewardNum}`);
+      return { success: true, newCoins: rewardNum };
     });
 
     return NextResponse.json(result);
