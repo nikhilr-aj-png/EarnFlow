@@ -27,13 +27,15 @@ export function MonetagScript() {
 
   useEffect(() => {
     // Helper to execute scripts from HTML
-    const executeScripts = (html: string) => {
-      if (!html) return;
+    const executeScripts = (html: string, id: string) => {
+      if (!html || document.getElementById(`script-executed-${id}`)) return;
+
       const doc = new DOMParser().parseFromString(html, "text/html");
       const scripts = doc.querySelectorAll("script");
 
       scripts.forEach((oldScript) => {
         const newScript = document.createElement("script");
+        newScript.id = `script-executed-${id}`;
         Array.from(oldScript.attributes).forEach((attr) => {
           newScript.setAttribute(attr.name, attr.value);
         });
@@ -44,8 +46,8 @@ export function MonetagScript() {
       });
     };
 
-    if (scripts.banner) executeScripts(scripts.banner);
-    if (scripts.interstitial) executeScripts(scripts.interstitial);
+    if (scripts.banner) executeScripts(scripts.banner, 'banner');
+    if (scripts.interstitial) executeScripts(scripts.interstitial, 'interstitial');
   }, [scripts]);
 
   return (

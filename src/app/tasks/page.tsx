@@ -106,13 +106,13 @@ export default function TasksPage() {
     const isFreeEarningTask = !task.isPremium && ['quiz', 'visit', 'app'].includes(task.type);
 
     if (isFreeEarningTask) {
-      toast.info("Preparing your task... Enjoy the ad! 🎭", { duration: 3000 });
+      toast.info("Preparing your task... Enjoy the ad! 🎭", { duration: 5000 });
       setActiveTask(task);
 
       // Delay to allow interstitial to potentially show/load
       setTimeout(() => {
         handleFinishTask(task);
-      }, 3000);
+      }, 5000);
     } else {
       setActiveTask(task);
       handleFinishTask(task);
