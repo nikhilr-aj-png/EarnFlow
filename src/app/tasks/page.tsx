@@ -306,8 +306,8 @@ export default function TasksPage() {
 
       {/* 🛡️ AD-LOCK OVERLAY */}
       {isAdLockOpen && activeTask && (
-        <div className="fixed inset-0 z-[40] bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-[#1c1d24] border border-white/10 rounded-[2.5rem] p-8 text-center space-y-6 shadow-2xl">
+        <div className="fixed inset-0 z-[40] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[#1c1d24] border border-white/10 rounded-[2.5rem] p-8 text-center space-y-6 shadow-2xl relative z-50">
             <div className="relative">
               <div className="absolute inset-0 bg-amber-500/20 blur-3xl animate-pulse rounded-full" />
               <div className="h-20 w-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mx-auto relative z-10 border border-amber-500/20">

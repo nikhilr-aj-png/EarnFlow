@@ -8,6 +8,7 @@ import { db } from "@/lib/firebase";
 declare global {
   interface Window {
     __isMonetagBlocked?: boolean;
+    refreshMonetagAds?: () => void;
   }
 }
 
@@ -70,7 +71,18 @@ export function MonetagScript() {
         window.__isMonetagBlocked = true;
       }
     }, 3000);
-    return () => clearTimeout(timer);
+
+    // Expose refresh function
+    window.refreshMonetagAds = () => {
+      console.log("Refreshing Monetag Ads...");
+      if (scripts.banner) executeScripts(scripts.banner, 'banner');
+      if (scripts.interstitial) executeScripts(scripts.interstitial, 'interstitial');
+    };
+
+    return () => {
+      clearTimeout(timer);
+      delete window.refreshMonetagAds;
+    };
   }, [scripts]);
 
   return (
