@@ -1,8 +1,13 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+
+// Extend Window interface for types
+declare global {
+  interface Window {
+    __isMonetagBlocked?: boolean;
+  }
+}
 
 export function MonetagScript() {
   const [scripts, setScripts] = useState<{ banner: string, interstitial: string }>({ banner: "", interstitial: "" });
@@ -36,6 +41,13 @@ export function MonetagScript() {
       scripts.forEach((oldScript) => {
         const newScript = document.createElement("script");
         newScript.id = `script-executed-${id}`;
+
+        // Detection: set global blocked state if script fails
+        newScript.onerror = () => {
+          console.warn(`Monetag Script ${id} was blocked.`);
+          window.__isMonetagBlocked = true;
+        };
+
         Array.from(oldScript.attributes).forEach((attr) => {
           newScript.setAttribute(attr.name, attr.value);
         });
@@ -48,6 +60,15 @@ export function MonetagScript() {
 
     if (scripts.banner) executeScripts(scripts.banner, 'banner');
     if (scripts.interstitial) executeScripts(scripts.interstitial, 'interstitial');
+
+    // Initial check: if no scripts after 3s, assume blocked or empty
+    const timer = setTimeout(() => {
+      if (!scripts.interstitial && !scripts.banner) return;
+      if (!document.getElementById('script-executed-interstitial') && !document.getElementById('script-executed-banner')) {
+        window.__isMonetagBlocked = true;
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
   }, [scripts]);
 
   return (

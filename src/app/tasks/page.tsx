@@ -31,6 +31,11 @@ export default function TasksPage() {
   const [activeTask, setActiveTask] = useState<any | null>(null);
   const [isCompleting, setIsCompleting] = useState(false);
 
+  // Ad-Lock States
+  const [isAdLockOpen, setIsAdLockOpen] = useState(false);
+  const [adCountdown, setAdCountdown] = useState(5);
+  const [adBlocked, setAdBlocked] = useState(false);
+
   // Fetch tasks and user submissions from Firestore
   useEffect(() => {
     const fetchData = async () => {
@@ -106,13 +111,27 @@ export default function TasksPage() {
     const isFreeEarningTask = !task.isPremium && ['quiz', 'visit', 'app'].includes(task.type);
 
     if (isFreeEarningTask) {
-      toast.info("Preparing your task... Enjoy the ad! 🎭", { duration: 5000 });
       setActiveTask(task);
+      setIsAdLockOpen(true);
+      setAdCountdown(5);
 
-      // Delay to allow interstitial to potentially show/load
-      setTimeout(() => {
-        handleFinishTask(task);
-      }, 5000);
+      // Check AdBlock
+      if ((window as any).__isMonetagBlocked) {
+        setAdBlocked(true);
+      } else {
+        setAdBlocked(false);
+      }
+
+      // Start Countdown
+      const interval = setInterval(() => {
+        setAdCountdown((prev) => {
+          if (prev <= 1) {
+            clearInterval(interval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
     } else {
       setActiveTask(task);
       handleFinishTask(task);
@@ -284,6 +303,67 @@ export default function TasksPage() {
         isOpen={isUpgradeOpen}
         onClose={() => setIsUpgradeOpen(false)}
       />
+
+      {/* 🛡️ AD-LOCK OVERLAY */}
+      {isAdLockOpen && activeTask && (
+        <div className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-xl flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-[#1c1d24] border border-white/10 rounded-[2.5rem] p-8 text-center space-y-6 shadow-2xl">
+            <div className="relative">
+              <div className="absolute inset-0 bg-amber-500/20 blur-3xl animate-pulse rounded-full" />
+              <div className="h-20 w-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mx-auto relative z-10 border border-amber-500/20">
+                <Loader2 className={cn("h-10 w-10 text-amber-500", adCountdown > 0 && "animate-spin")} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black italic uppercase tracking-tighter text-white">Preparing Task</h2>
+              <p className="text-zinc-500 text-sm font-medium">Please wait while we secure your reward...</p>
+            </div>
+
+            {adBlocked ? (
+              <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-2xl">
+                <p className="text-red-500 text-xs font-black uppercase tracking-widest">AdBlock Detected! 🚫</p>
+                <p className="text-zinc-400 text-[10px] mt-1">Please disable AdBlock to earn coins from free tasks.</p>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="mt-3 text-[10px] font-black underline text-white hover:text-amber-500"
+                >
+                  REFRESH PAGE
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {adCountdown > 0 ? (
+                  <div className="text-5xl font-black text-amber-500 font-mono tracking-tighter animate-pulse">
+                    0:{adCountdown.toString().padStart(2, '0')}
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => {
+                      setIsAdLockOpen(false);
+                      handleFinishTask(activeTask);
+                    }}
+                    className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black py-4 rounded-2xl uppercase italic tracking-tighter transition-all active:scale-95 shadow-lg shadow-amber-500/20"
+                  >
+                    START TASK NOW 🚀
+                  </button>
+                )}
+                <p className="text-[9px] text-zinc-600 font-bold uppercase tracking-[0.2em]">Viewing ads helps us keep rewards high!</p>
+              </div>
+            )}
+
+            <button
+              onClick={() => {
+                setIsAdLockOpen(false);
+                setActiveTask(null);
+              }}
+              className="text-zinc-600 hover:text-zinc-400 text-[10px] font-black uppercase tracking-widest transition-colors"
+            >
+              Cancel and Return
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
