@@ -120,9 +120,11 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
       const seen = new Set();
       const segmentedHistory = allHistory.filter(h => {
         if (h.gameId !== id) return false;
-        // Create a unique key for the round
-        const roundKey = `${h.gameId}_${h.startTime?.seconds || h.startTime}`;
-        if (seen.has(roundKey)) return false;
+        // Create a unique key for the round (Normalize startTime to number)
+        const sTime = typeof h.startTime === 'object' ? h.startTime?.seconds : Number(h.startTime);
+        const roundKey = `${h.gameId}_${sTime}`;
+
+        if (!sTime || seen.has(roundKey)) return false;
         seen.add(roundKey);
         return true;
       }).slice(0, 30);
@@ -251,12 +253,11 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
           <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">History</span>
         </div>
         <div className="flex items-center gap-2">
-          {pastWinners.map((pw, i) => (
+          {pastWinners.map((pw) => (
             <motion.div
               key={pw.id}
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: i * 0.05 }}
               className="px-4 py-1.5 rounded-full bg-[#1c1d24] border border-[#2c2d3a] text-xs font-black text-amber-500 hover:bg-amber-500 hover:text-black transition-colors cursor-default whitespace-nowrap"
             >
               {pw.winnerIndex === 0 ? "King" : "Queen"}
@@ -504,14 +505,16 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                   <p className="text-xs font-black uppercase tracking-[0.2em] italic">Waiting for the community to join...</p>
                 </div>
               ) : (
-                allBets.map((bet, i) => {
+                allBets.map((bet) => {
                   const isWin = reveal && bet.cardIndex === game.winnerIndex;
                   const isLoss = reveal && bet.cardIndex !== game.winnerIndex;
                   const displayPrice = bet.price || game.price;
+                  // Unique key for bet (id if available, else generated)
+                  const betKey = bet.id || `${bet.userId}_${bet.cardIndex}_${bet.updatedAt?.seconds}`;
 
                   return (
                     <motion.div
-                      key={i}
+                      key={betKey}
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       className={cn(
