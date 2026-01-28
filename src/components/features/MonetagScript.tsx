@@ -25,10 +25,37 @@ export function MonetagScript() {
     fetchScript();
   }, []);
 
+  useEffect(() => {
+    // Helper to execute scripts from HTML
+    const executeScripts = (html: string) => {
+      if (!html) return;
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const scripts = doc.querySelectorAll("script");
+
+      scripts.forEach((oldScript) => {
+        const newScript = document.createElement("script");
+        Array.from(oldScript.attributes).forEach((attr) => {
+          newScript.setAttribute(attr.name, attr.value);
+        });
+        if (oldScript.innerHTML) {
+          newScript.innerHTML = oldScript.innerHTML;
+        }
+        document.body.appendChild(newScript);
+      });
+    };
+
+    if (scripts.banner) executeScripts(scripts.banner);
+    if (scripts.interstitial) executeScripts(scripts.interstitial);
+  }, [scripts]);
+
   return (
     <>
-      {scripts.banner && <div dangerouslySetInnerHTML={{ __html: scripts.banner }} />}
-      {scripts.interstitial && <div dangerouslySetInnerHTML={{ __html: scripts.interstitial }} />}
+      <div id="monetag-banner-container" dangerouslySetInnerHTML={{
+        __html: scripts.banner.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+      }} />
+      <div id="monetag-interstitial-container" dangerouslySetInnerHTML={{
+        __html: scripts.interstitial.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+      }} />
     </>
   );
 }
