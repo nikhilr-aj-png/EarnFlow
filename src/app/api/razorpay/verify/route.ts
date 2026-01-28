@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import crypto from "crypto";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, increment, getDoc } from "firebase/firestore";
+import { doc, updateDoc, increment, getDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
 
 export async function POST(req: Request) {
   try {
@@ -32,11 +32,31 @@ export async function POST(req: Request) {
       await updateDoc(userRef, {
         isPremium: true
       });
+      // Unified Activity Feed Record
+      await addDoc(collection(db, "activities"), {
+        userId,
+        type: 'upgrade',
+        amount: amount || 0,
+        title: "Premium Membership 💎",
+        metadata: { razorpay_payment_id, razorpay_order_id },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
     } else if (type === 'deposit') {
-      const coinsToAdd = Math.floor(amount * 100); // ₹1 = 100 Coins
+      const coinsToAdd = Math.floor(amount * 100);
       await updateDoc(userRef, {
         coins: increment(coinsToAdd),
         totalEarned: increment(coinsToAdd)
+      });
+      // Unified Activity Feed Record
+      await addDoc(collection(db, "activities"), {
+        userId,
+        type: 'deposit',
+        amount: coinsToAdd,
+        title: "Coins Added 💰",
+        metadata: { razorpay_payment_id, razorpay_order_id, inrAmount: amount },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
       });
     }
 

@@ -21,16 +21,18 @@ export default function GamesGalleryPage() {
     const q = query(collection(db, "cardGames"));
     const unsub = onSnapshot(q, (snap) => {
       const allActive = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      const now = Math.floor(Date.now() / 1000);
-
-      // Show all active games (even if overdue) so they can be rendered and auto-cycled by the card component
-      const filtered = allActive;
+      // Show only active games in the gallery. 
+      // 'expired' games stay in DB for reveal but hide from gallery.
+      const filtered = allActive.filter(g => g.status === 'active');
 
       // Stable Sort: Duration Asc -> Price Asc -> Creation Desc
       filtered.sort((a, b) => {
         const durDiff = (a.duration || 0) - (b.duration || 0);
         if (durDiff !== 0) return durDiff;
-        return (a.price || 0) - (b.price || 0);
+        const priceDiff = (a.price || 0) - (b.price || 0);
+        if (priceDiff !== 0) return priceDiff;
+        // If duration and price are equal, sort by createdAt descending
+        return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
       });
 
       setActiveGames(filtered);

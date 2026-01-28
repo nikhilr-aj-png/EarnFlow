@@ -109,34 +109,44 @@ export async function POST(req: Request) {
         // Let's do it right here if it's an auto game
         if (gameData.winnerSelection === 'auto') {
           // We'll let the Cron handle the heavy lifting or do a quick call here.
-          // To keep it simple and safe from transaction timeouts, let's just ensure 
-          // finalize was called or trigger award here.
+          // 1. Archive Result to History (Aviator Strip) - IDEMPOTENT ID
+          const historyId = `hist_${gameId}_${startTime}`;
+          const historyRef = db.collection("cardGameHistory").doc(historyId);
+          t.set(historyRef, {
+            gameId: gameId,
+            winnerIndex: gameData.winnerIndex,
+            winnerSelection: gameData.winnerSelection,
+            price: gameData.price,
+            question: gameData.question,
+            startTime: gameData.startTime,
+            endTime: now,
+            createdAt: now
+          });
+
+          // 2. Generate New Round Content (Reuse Theme or New)
+          const theme = getRandomTheme();
+          const questionText = theme.questionTemplates[Math.floor(Math.random() * theme.questionTemplates.length)];
+
+          // 3. Update Existing Document (ID Stays the Same)
+          t.update(gameRef, {
+            question: `${questionText} (${expiryLabel})`,
+            price: price,
+            duration: duration,
+            winnerIndex: -1,
+            winnerSelection: "auto",
+            status: "active",
+            cardImages: theme.cards,
+            themeId: theme.id,
+            startTime: now,
+            updatedAt: now,
+            generatedBy: "Instant_Cycle_Reuse",
+            expiryLabel: expiryLabel,
+            isPremium: isPremium
+          });
+
+          newGameId = gameId; // ID remains constant
         }
-
-        const newGameData = {
-          question: `${questionText} (${expiryLabel})`,
-          price: price,
-          duration: duration,
-          winnerIndex: -1,
-          winnerSelection: "auto",
-          status: "active",
-          isPremium: isPremium,
-          cardImages: theme.cards,
-          startTime: now,
-          createdAt: now,
-          updatedAt: now,
-          generatedBy: "Instant_Cycle",
-          expiryLabel: expiryLabel,
-          themeId: theme.id
-        };
-
-        const newGameRef = db.collection("cardGames").doc();
-        newGameId = newGameRef.id;
-
-        // ATOMIC SWAP: Delete Old, Create New
-        t.delete(gameRef);
-        t.set(newGameRef, newGameData);
-      });
+      }); // Closes the async (t) => { ... } function and the db.runTransaction call
 
     } catch (e: any) {
       if (e.message === "GAME_NOT_FOUND") {
@@ -144,7 +154,8 @@ export async function POST(req: Request) {
       } else if (e.message === "EARLY_CYCLE_ATTEMPT") {
         return NextResponse.json({ error: "Game is not yet expired" }, { status: 400 });
       } else {
-        throw e; // Rethrow unexpected errors
+        console.error("[CYCLE] Transaction Error:", e);
+        return NextResponse.json({ error: e.message }, { status: 500 });
       }
     }
 

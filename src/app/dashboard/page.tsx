@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Coins, IndianRupee, Trophy, Users, ArrowUpRight, Loader2, Timer, Plus, Sparkles, TrendingUp, Crown } from "lucide-react";
+import { Coins, IndianRupee, Trophy, Users, ArrowUpRight, Loader2, Timer, Plus, Sparkles, TrendingUp, Crown, Minus, ArrowDownToLine, Gem, CheckCircle2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { ReferralCard } from "@/components/features/ReferralCard";
 import { DepositModal } from "@/components/features/DepositModal";
@@ -22,10 +22,15 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!user) return;
 
-    const activitiesQuery = query(collection(db, "activities"), where("userId", "==", user.uid), limit(20));
+    const activitiesQuery = query(collection(db, "activities"), where("userId", "==", user.uid));
     const unsubActivities = onSnapshot(activitiesQuery, (snap) => {
       const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      const sorted = data.sort((a: any, b: any) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)).slice(0, 4);
+      // Client-side sorting to avoid index requirement
+      const sorted = data.sort((a: any, b: any) => {
+        const timeA = a.createdAt?.seconds || 0;
+        const timeB = b.createdAt?.seconds || 0;
+        return timeB - timeA;
+      }).slice(0, 6); // Requested: Show recent 6 items
       setRecentActivities(sorted);
     }, (err) => console.error("Activities Snapshot Error:", err));
 
@@ -125,35 +130,65 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold flex items-center gap-2">
               <TrendingUp className="h-5 w-5 text-amber-500" /> Recent Activity
             </h2>
-            <Link href="/tasks" className="text-xs font-bold text-amber-500 hover:text-white transition-colors">VIEW ALL</Link>
+            <Link href="/dashboard/activities" className="text-xs font-bold text-amber-500 hover:text-white transition-colors">VIEW ALL</Link>
           </div>
 
           <div className="bg-black/20 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden p-2 space-y-2">
-            {recentActivities.length > 0 ? recentActivities.map((activity) => (
-              <div key={activity.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all hover:translate-x-1 group">
-                <div className="flex items-center gap-4">
-                  <div className={cn(
-                    "h-10 w-10 rounded-full flex items-center justify-center border transition-colors",
-                    activity.type === 'game_win'
-                      ? "bg-amber-500/10 border-amber-500/20 group-hover:border-amber-500/50"
-                      : "bg-green-500/10 border-green-500/20 group-hover:border-green-500/50"
-                  )}>
-                    {activity.type === 'game_win'
-                      ? <Trophy className="h-5 w-5 text-amber-500" />
-                      : <Coins className="h-5 w-5 text-green-500" />
-                    }
+            {recentActivities.length > 0 ? recentActivities.map((activity) => {
+              const isGain = ['game_win', 'task', 'deposit'].includes(activity.type);
+              const isLoss = ['bet', 'withdrawal'].includes(activity.type);
+
+              let Icon = Coins;
+              let colorClass = "bg-zinc-500/10 border-zinc-500/20 text-zinc-500";
+              let amountColor = "text-white";
+
+              if (activity.type === 'game_win') {
+                Icon = Trophy;
+                colorClass = "bg-amber-500/10 border-amber-500/20 text-amber-500 group-hover:border-amber-500/50";
+                amountColor = "text-amber-500";
+              } else if (activity.type === 'task') {
+                Icon = CheckCircle2;
+                colorClass = "bg-green-500/10 border-green-500/20 text-green-500 group-hover:border-green-500/50";
+                amountColor = "text-green-500";
+              } else if (activity.type === 'bet') {
+                Icon = Minus;
+                colorClass = "bg-red-500/10 border-red-500/20 text-red-500 group-hover:border-red-500/50";
+                amountColor = "text-red-400";
+              } else if (activity.type === 'deposit') {
+                Icon = Plus;
+                colorClass = "bg-blue-500/10 border-blue-500/20 text-blue-500 group-hover:border-blue-500/50";
+                amountColor = "text-blue-500";
+              } else if (activity.type === 'withdrawal') {
+                Icon = ArrowDownToLine;
+                colorClass = "bg-purple-500/10 border-purple-500/20 text-purple-500 group-hover:border-purple-500/50";
+                amountColor = "text-purple-400";
+              } else if (activity.type === 'upgrade') {
+                Icon = Gem;
+                colorClass = "bg-cyan-500/10 border-cyan-500/20 text-cyan-500 group-hover:border-cyan-500/50";
+                amountColor = "text-cyan-400";
+              }
+
+              return (
+                <div key={activity.id} className="flex items-center justify-between p-4 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-all hover:translate-x-1 group">
+                  <div className="flex items-center gap-4">
+                    <div className={cn("h-10 w-10 rounded-full flex items-center justify-center border transition-colors", colorClass)}>
+                      <Icon className="h-5 w-5" />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm text-white group-hover:text-amber-400 transition-colors">{activity.title}</p>
+                      <p className="text-xs text-zinc-500">
+                        {activity.createdAt?.seconds
+                          ? new Date(activity.createdAt.seconds * 1000).toLocaleDateString()
+                          : "Processing..."}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-bold text-sm text-white group-hover:text-amber-400 transition-colors">{activity.title}</p>
-                    <p className="text-xs text-zinc-500">{new Date(activity.createdAt?.seconds * 1000).toLocaleDateString()}</p>
+                  <div className={cn("text-lg font-black", amountColor)}>
+                    {isGain ? "+" : isLoss ? "-" : ""}{activity.amount}
                   </div>
                 </div>
-                <div className={cn(
-                  "text-lg font-black",
-                  activity.type === 'game_win' ? "text-amber-500" : "text-white"
-                )}>+{activity.amount}</div>
-              </div>
-            )) : (
+              );
+            }) : (
               <div className="py-12 text-center text-zinc-500">No activity yet. Start earning!</div>
             )}
           </div>
@@ -174,7 +209,7 @@ export default function DashboardPage() {
                 No active games.
               </div>
             ) : (
-              activeGames.slice(0, 3).map(game => <DashboardGameCard key={game.id} game={game} />)
+              activeGames.slice(0, 2).map(game => <DashboardGameCard key={game.id} game={game} />)
             )}
           </div>
 

@@ -38,7 +38,21 @@ export async function POST(req: Request) {
       const { winnerIndex } = await calculateSmartWinner(db, gameId, winningTime);
       resultWinnerIndex = winnerIndex;
 
-      // 3. Update Game State
+      // 3. Record to History (Aviator Strip) - IDEMPOTENT ID
+      const historyId = `hist_${gameId}_${winningTime}`;
+      const historyRef = db.collection("cardGameHistory").doc(historyId);
+      t.set(historyRef, {
+        gameId: gameId,
+        winnerIndex: winnerIndex,
+        winnerSelection: gameData.winnerSelection,
+        price: gameData.price,
+        question: gameData.question,
+        startTime: gameData.startTime,
+        endTime: Timestamp.now(),
+        createdAt: Timestamp.now()
+      });
+
+      // 4. Update Game State to EXPIRED (Don't Delete)
       t.update(gameRef, {
         winnerIndex: winnerIndex,
         status: 'expired',
@@ -46,8 +60,18 @@ export async function POST(req: Request) {
       });
     });
 
-    // Award Rewards OUTSIDE transaction to avoid contention, but ONLY if we were the one who set it (or just always call it as it's idempotent for each entry)
-    const finalResult = await awardGameRewards(db, gameId, resultWinnerIndex, gameStartTime);
+    // Award Rewards OUTSIDE transaction
+    // We fetch one more time to get the titles/price safely if needed, or pass them
+    const gSnap = await gameRef.get();
+    const gData = gSnap.data();
+    const finalResult = await awardGameRewards(
+      db,
+      gameId,
+      resultWinnerIndex,
+      gameStartTime,
+      gData?.price,
+      gData?.question
+    );
 
     return NextResponse.json({
       winnerIndex: resultWinnerIndex,

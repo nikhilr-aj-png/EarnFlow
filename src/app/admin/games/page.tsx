@@ -28,6 +28,7 @@ export default function AdminGamesPage() {
     duration: "1h",
     winnerIndex: 0,
     winnerSelection: 'manual', // 'manual' | 'auto'
+    betMode: 'fixed' as 'fixed' | 'quick',
     status: "active",
     isPremium: false,
     cardImages: [
@@ -81,6 +82,7 @@ export default function AdminGamesPage() {
         duration: game.duration || "1h",
         winnerIndex: game.winnerIndex,
         winnerSelection: game.winnerSelection || 'manual',
+        betMode: game.betMode || 'fixed',
         status: game.status || "inactive",
         isPremium: game.isPremium || false,
         cardImages: game.cardImages || formData.cardImages
@@ -93,6 +95,7 @@ export default function AdminGamesPage() {
         duration: "1h",
         winnerIndex: 0,
         winnerSelection: 'manual',
+        betMode: 'fixed',
         status: "active",
         isPremium: false,
         cardImages: [
@@ -335,10 +338,27 @@ export default function AdminGamesPage() {
           </div>
 
           <div className="grid grid-cols-2 gap-4">
-            <div><label className="text-sm font-bold text-amber-500">Entry Price</label><Input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} className="bg-white/5 border-white/10" /></div>
-            <div><label className="text-sm font-bold text-amber-500">Duration</label><select value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} className="w-full h-10 rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500">{DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+            <div>
+              <label className="text-sm font-bold text-amber-500">Betting Mode</label>
+              <select
+                value={formData.betMode || 'fixed'}
+                onChange={e => setFormData({ ...formData, betMode: e.target.value as any })}
+                className="w-full h-10 rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+              >
+                <option value="fixed">Fixed Price Only</option>
+                <option value="quick">Quick Bet (Flexible)</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-sm font-bold text-amber-500">{formData.betMode === 'quick' ? 'Min Bet' : 'Entry Price'}</label>
+              <Input type="number" value={formData.price} onChange={e => setFormData({ ...formData, price: Number(e.target.value) })} className="bg-white/5 border-white/10" />
+            </div>
           </div>
-          <div><label className="text-sm font-bold text-amber-500">Tier</label><select value={formData.isPremium ? 'premium' : 'free'} onChange={e => setFormData({ ...formData, isPremium: e.target.value === 'premium' })} className="w-full h-10 rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white"><option value="free">Free</option><option value="premium">Premium</option></select></div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div><label className="text-sm font-bold text-amber-500">Duration</label><select value={formData.duration} onChange={e => setFormData({ ...formData, duration: e.target.value })} className="w-full h-10 rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-amber-500">{DURATIONS.map(d => <option key={d} value={d}>{d}</option>)}</select></div>
+            <div><label className="text-sm font-bold text-amber-500">Tier</label><select value={formData.isPremium ? 'premium' : 'free'} onChange={e => setFormData({ ...formData, isPremium: e.target.value === 'premium' })} className="w-full h-10 rounded-md border border-white/10 bg-zinc-900 px-3 py-2 text-sm text-white"><option value="free">Free</option><option value="premium">Premium</option></select></div>
+          </div>
 
           <div className="space-y-2 pt-4">
             <div className="flex items-center justify-between">

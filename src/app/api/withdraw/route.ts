@@ -63,6 +63,18 @@ export async function POST(req: Request) {
         createdAt: Timestamp.now()
       });
 
+      // Record Activity
+      const activityRef = db.collection("activities").doc();
+      transaction.set(activityRef, {
+        userId,
+        type: 'withdrawal',
+        amount: amount * 100, // Show in coins
+        title: "Withdrawal Requested 💸",
+        metadata: { withdrawalId: withdrawalRef.id, method },
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
+
       return { success: true, id: withdrawalRef.id };
     });
 

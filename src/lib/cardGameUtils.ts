@@ -6,39 +6,54 @@ import * as admin from 'firebase-admin';
  */
 export async function calculateSmartWinner(db: Firestore, gameId: string, startTime: number) {
   try {
+    // Precise query: Only consider entries for THIS specific round
     const entriesQ = await db.collection("cardGameEntries")
       .where("gameId", "==", gameId)
+      .where("gameStartTime", "==", startTime)
       .get();
 
-    const cardCounts = [0, 0, 0, 0];
-    let totalTickets = 0;
+    const cardVolumes = [0, 0, 0, 0];
+    let totalVolume = 0;
 
     entriesQ.docs.forEach(e => {
-      const selected = e.data().selectedCards || [];
-      selected.forEach((idx: number) => {
+      const data = e.data();
+      const price = Number(data.price || 0);
+
+      // Use cardIndex (new granular format) or fallback to selectedCards
+      if (data.cardIndex !== undefined) {
+        const idx = data.cardIndex;
         if (idx >= 0 && idx < 4) {
-          cardCounts[idx]++;
-          totalTickets++;
+          cardVolumes[idx] += price;
+          totalVolume += price;
         }
-      });
+      } else {
+        // Legacy fallback
+        const selected = data.selectedCards || [];
+        selected.forEach((idx: number) => {
+          if (idx >= 0 && idx < 4) {
+            cardVolumes[idx] += price;
+            totalVolume += price;
+          }
+        });
+      }
     });
 
-    if (totalTickets === 0) {
+    if (totalVolume === 0) {
       return {
         winnerIndex: Math.floor(Math.random() * 4),
-        counts: cardCounts,
+        volumes: cardVolumes,
         method: 'random'
       };
     }
 
-    let minVal = Infinity;
+    let minVol = Infinity;
     let candidates: number[] = [];
 
-    cardCounts.forEach((count, idx) => {
-      if (count < minVal) {
-        minVal = count;
+    cardVolumes.forEach((vol, idx) => {
+      if (vol < minVol) {
+        minVol = vol;
         candidates = [idx];
-      } else if (count === minVal) {
+      } else if (vol === minVol) {
         candidates.push(idx);
       }
     });
@@ -47,24 +62,28 @@ export async function calculateSmartWinner(db: Firestore, gameId: string, startT
 
     return {
       winnerIndex: finalWinnerIndex,
-      counts: cardCounts,
-      method: 'smart'
+      volumes: cardVolumes,
+      method: 'smart_volume'
     };
 
   } catch (error) {
-    console.error("Error calculating smart winner:", error);
+    console.error("Error calculating volume-based smart winner:", error);
     return {
       winnerIndex: Math.floor(Math.random() * 4),
-      counts: [0, 0, 0, 0],
+      volumes: [0, 0, 0, 0],
       method: 'random_fallback'
     };
   }
 }
 
-/**
- * Automatically credits winners for a finished game.
- */
-export async function awardGameRewards(db: Firestore, gameId: string, winnerIndex: number, startTime: number) {
+export async function awardGameRewards(
+  db: Firestore,
+  gameId: string,
+  winnerIndex: number,
+  startTime: number,
+  passedPrice?: number,
+  passedTitle?: string
+) {
   try {
     console.log(`[REWARDS] Starting for Game: ${gameId}, Winner: ${winnerIndex}, StartTime: ${startTime}`);
 
@@ -79,17 +98,26 @@ export async function awardGameRewards(db: Firestore, gameId: string, winnerInde
       return { processed: 0, winners: 0 };
     }
 
-    const gameSnap = await db.collection("cardGames").doc(gameId).get();
-    const gameData = gameSnap.data();
-    const gamePrice = Number(gameData?.price || 0);
-    const rewardAmount = gamePrice * 2;
-    const gameTitle = gameData?.question || "Card Game";
+    // Use passed values or fetch (fallback)
+    let gamePrice = passedPrice || 0;
+    let gameTitle = passedTitle || "Card Game";
 
-    console.log(`[REWARDS] Processing ${entriesQ.size} entries. Total Price: ${gamePrice}, Reward Per Winner: ${rewardAmount}`);
+    if (!passedPrice || !passedTitle) {
+      const gameSnap = await db.collection("cardGames").doc(gameId).get();
+      if (gameSnap.exists) {
+        const d = gameSnap.data();
+        if (!passedPrice) gamePrice = Number(d?.price || 0);
+        if (!passedTitle) gameTitle = d?.question || "Card Game";
+      }
+    }
+
+    const rewardAmount = gamePrice * 2;
+
+    console.log(`[REWARDS] Processing ${entriesQ.size} entries. Total Price: ${gamePrice}, Reward: ${rewardAmount}`);
 
     let winnersCount = 0;
     const docs = entriesQ.docs;
-    const CHUNK_SIZE = 100; // 100 winners * 3 ops = 300 ops per batch (Safe under 500 limit)
+    const CHUNK_SIZE = 100;
 
     for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
       const chunk = docs.slice(i, i + CHUNK_SIZE);
@@ -99,6 +127,8 @@ export async function awardGameRewards(db: Firestore, gameId: string, winnerInde
         const data = doc.data();
         const selected = data.selectedCards || [];
         const userId = data.userId;
+        const entryPrice = data.price || gamePrice; // Use individual bet amount
+        const rewardAmount = entryPrice * 2;
 
         if (!userId) {
           batch.update(doc.ref, { rewardProcessed: true, error: "Missing UserID" });
@@ -126,9 +156,11 @@ export async function awardGameRewards(db: Firestore, gameId: string, winnerInde
               gameId,
               winnerIndex,
               selectedCards: selected,
-              gameTitle: gameTitle
+              gameTitle: gameTitle,
+              betAmount: entryPrice
             },
-            createdAt: Timestamp.now()
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now()
           });
 
           batch.update(doc.ref, {
@@ -149,7 +181,6 @@ export async function awardGameRewards(db: Firestore, gameId: string, winnerInde
       }
 
       await batch.commit();
-      console.log(`[REWARDS] Batch committed: ${i} to ${Math.min(i + CHUNK_SIZE, docs.length)}`);
     }
 
     console.log(`[REWARDS] Finalized all batches. Paid: ${winnersCount} winners.`);

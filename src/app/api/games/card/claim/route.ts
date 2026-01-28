@@ -31,38 +31,52 @@ export async function POST(req: Request) {
 
       console.log(`[CLAIM] Request for User: ${userId}, Game: ${gameId}, Price: ${gamePrice}`);
 
-      // 1. Get Entry Data
-      const gameSessionId = `${userId}_${gameId}_${gameStartTime}`;
-      const entryRef = db.collection("cardGameEntries").doc(gameSessionId);
-      const entrySnap = await transaction.get(entryRef);
+      // 1. Get ALL Winning Entries for this user/round
+      const entriesSnap = await db.collection("cardGameEntries")
+        .where("userId", "==", userId)
+        .where("gameId", "==", gameId)
+        .where("gameStartTime", "==", gameStartTime)
+        .where("rewardProcessed", "==", false)
+        .get();
 
-      if (!entrySnap.exists) throw new Error("Entry not found");
-      const entryData = entrySnap.data();
+      if (entriesSnap.empty) throw new Error("No pending entries found");
 
-      if (entryData.rewardProcessed) {
-        throw new Error("Reward already processed");
-      }
+      let totalReward = 0;
+      let winningDocs: any[] = [];
 
-      // Verify Selection against Actual Winner
-      if (!entryData.selectedCards || !entryData.selectedCards.includes(actualWinnerIndex)) {
-        transaction.update(entryRef, { rewardProcessed: true });
-        return { success: true, won: false };
-      }
-
-      // User Won - Apply 2x Reward (STRICT CASTING)
-      calculatedReward = Number(gameData.price) * 2;
-      const userRef = db.collection("users").doc(userId);
-
-      transaction.update(userRef, {
-        coins: admin.firestore.FieldValue.increment(calculatedReward),
-        totalEarned: admin.firestore.FieldValue.increment(calculatedReward),
-        gameEarnings: admin.firestore.FieldValue.increment(calculatedReward)
+      entriesSnap.docs.forEach(doc => {
+        const data = doc.data();
+        if (data.selectedCards?.includes(actualWinnerIndex)) {
+          // Calculate reward based on THIS entry's price (or global if missing)
+          const entryPrice = data.price || gamePrice;
+          totalReward += (entryPrice * 2);
+          winningDocs.push(doc.ref);
+        } else {
+          // Mark losing entry as processed
+          transaction.update(doc.ref, { rewardProcessed: true, won: false, updatedAt: admin.firestore.Timestamp.now() });
+        }
       });
 
-      transaction.update(entryRef, {
-        rewardProcessed: true,
-        rewardAmount: calculatedReward,
-        updatedAt: admin.firestore.Timestamp.now()
+      if (totalReward === 0) {
+        return { success: true, won: false, note: "No winning cards in this selection" };
+      }
+
+      // User Won - Apply Summed Rewards
+      const userRef = db.collection("users").doc(userId);
+      transaction.update(userRef, {
+        coins: admin.firestore.FieldValue.increment(totalReward),
+        totalEarned: admin.firestore.FieldValue.increment(totalReward),
+        gameEarnings: admin.firestore.FieldValue.increment(totalReward)
+      });
+
+      // Mark all winning entries as processed
+      winningDocs.forEach(ref => {
+        transaction.update(ref, {
+          rewardProcessed: true,
+          won: true,
+          rewardAmount: totalReward / winningDocs.length, // Split for record
+          updatedAt: admin.firestore.Timestamp.now()
+        });
       });
 
       // 3. Record Activity (Unified History)
@@ -70,10 +84,16 @@ export async function POST(req: Request) {
       transaction.set(activityRef, {
         userId,
         type: 'game_win',
-        amount: calculatedReward,
+        amount: totalReward,
         title: "Card Game Win 🏆",
-        metadata: { gameId, manuallyClaimed: true },
-        createdAt: admin.firestore.Timestamp.now()
+        metadata: {
+          gameId,
+          winningCards: winningDocs.length,
+          manuallyClaimed: true,
+          gameTitle: gameData.question
+        },
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now()
       });
 
       console.log(`[CLAIM] Success for User ${userId}, Won: ${calculatedReward}`);

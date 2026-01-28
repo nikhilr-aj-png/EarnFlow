@@ -17,7 +17,6 @@ export async function POST(req: Request) {
       // 1. Get User Data for Balance Check
       const userRef = db.collection("users").doc(userId);
       const userSnap = await transaction.get(userRef);
-
       if (!userSnap.exists) throw new Error("User not found");
       const userData = userSnap.data();
 
@@ -25,35 +24,62 @@ export async function POST(req: Request) {
         throw new Error("Insufficient coins");
       }
 
-      // 2. Check Game Entry
-      const gameSessionId = `${userId}_${gameId}_${gameStartTime}`;
-      const entryRef = db.collection("cardGameEntries").doc(gameSessionId);
+      // 2. Get Game Data to verify Bet Mode
+      const gameRef = db.collection("cardGames").doc(gameId);
+      const gameSnap = await transaction.get(gameRef);
+      if (!gameSnap.exists) throw new Error("Game not found");
+      const gameData = gameSnap.data();
+
+      // Validate Price vs Bet Mode
+      if (gameData.betMode === 'fixed') {
+        if (price !== gameData.price) throw new Error("Price mismatch for fixed mode");
+      } else if (gameData.betMode === 'quick') {
+        if (price < gameData.price) throw new Error(`Minimum bet is ${gameData.price}`);
+      }
+
+      // 3. Check Game Entry (Unique per User + Game + StartTime + Card)
+      const betId = `${userId}_${gameId}_${gameStartTime}_${cardIndex}`;
+      const entryRef = db.collection("cardGameEntries").doc(betId);
       const entrySnap = await transaction.get(entryRef);
 
-      let currentSelected: number[] = [];
       if (entrySnap.exists) {
-        currentSelected = entrySnap.data().selectedCards || [];
+        throw new Error("You already bet on this card in this round");
       }
 
-      if (currentSelected.includes(cardIndex)) {
-        throw new Error("Card already purchased");
-      }
-
-      // 3. Deduct Coins
+      // 4. Deduct Coins
       transaction.update(userRef, {
         coins: FieldValue.increment(-price)
       });
 
-      // 4. Update/Create Entry
-      const newSelected = [...currentSelected, cardIndex];
+      // 5. Create Entry (Each card selection is a unique document)
       transaction.set(entryRef, {
         userId,
+        userEmail: userData.email || "Anonymous",
+        userName: userData.name || "User",
         gameId,
-        selectedCards: newSelected,
+        cardIndex,
+        selectedCards: [cardIndex],
         gameStartTime,
-        rewardProcessed: entrySnap.exists ? entrySnap.data().rewardProcessed : false,
+        price: price,
+        rewardProcessed: false,
         updatedAt: Timestamp.now()
-      }, { merge: true });
+      });
+
+      // 6. Record Activity (Immediate Deduction)
+      const activityRef = db.collection("activities").doc();
+      transaction.set(activityRef, {
+        userId,
+        type: 'bet',
+        amount: price,
+        title: "Bet Placed 🎰",
+        metadata: {
+          gameId,
+          cardIndex,
+          gameStartTime
+        },
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now()
+      });
 
       return { success: true, newBalance: (userData.coins || 0) - price };
     });

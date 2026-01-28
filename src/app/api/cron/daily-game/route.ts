@@ -12,6 +12,24 @@ export async function GET() {
     const db = admin.firestore();
     const now = Timestamp.now();
 
+    // 0. Cleanup old 'expired' games and entries (Self-Healing GC)
+    const thirtyMinsAgo = new Timestamp(now.seconds - 1800, now.nanoseconds);
+    const oldGamesSnap = await db.collection("cardGames")
+      .where("status", "==", "expired")
+      .where("updatedAt", "<", thirtyMinsAgo)
+      .limit(10)
+      .get();
+
+    for (const oldDoc of oldGamesSnap.docs) {
+      const batch = db.batch();
+      // Delete entries
+      const oldEntries = await db.collection("cardGameEntries").where("gameId", "==", oldDoc.id).get();
+      oldEntries.forEach(ed => batch.delete(ed.ref));
+      // Delete game
+      batch.delete(oldDoc.ref);
+      await batch.commit().catch(console.error);
+    }
+
     // 1. Fetch all active games
     const gamesSnap = await db.collection("cardGames")
       .where("status", "==", "active")
@@ -26,55 +44,64 @@ export async function GET() {
 
       // Check if expired
       if (now.seconds >= startTime + duration) {
-        // --- CYCLE & AWARD LOGIC ---
         const gameId = gameDoc.id;
 
         // A. Calculate Winner
         const { winnerIndex } = await calculateSmartWinner(db, gameId, startTime);
 
-        // B. Automatically Award Rewards (The "Missing" Piece)
-        await awardGameRewards(db, gameId, winnerIndex, startTime);
+        // B. Automatically Award Rewards (Pass metadata for safety)
+        await awardGameRewards(
+          db,
+          gameId,
+          winnerIndex,
+          startTime,
+          gameData.price,
+          gameData.question
+        );
 
-        // C. Transition to Next Game (Atomically)
+        // C. Transition to Next Game (REUSE DOCUMENT)
         if (gameData.winnerSelection === 'auto') {
           const theme = getRandomTheme();
           const expiryLabel = gameData.expiryLabel || "1h";
           const price = gameData.price || 10;
-
-          const newGameData = {
-            question: `${theme.questionTemplates[0]} (${expiryLabel})`,
-            price: price,
-            duration: duration,
-            winnerIndex: -1,
-            winnerSelection: "auto",
-            status: "active",
-            cardImages: theme.cards,
-            startTime: now,
-            createdAt: now,
-            updatedAt: now,
-            generatedBy: "Cron_Cycle",
-            expiryLabel: expiryLabel,
-            themeId: theme.id,
-            isPremium: gameData.isPremium ?? false
-          };
+          const isPremium = gameData.isPremium ?? false;
 
           await db.runTransaction(async (t) => {
-            t.delete(gameDoc.ref);
-            t.set(db.collection("cardGames").doc(), newGameData);
-          });
-        } else {
-          // Manual games just become inactive
-          await gameDoc.ref.update({ status: 'inactive', winnerIndex });
-        }
+            // 1. Archive to History - IDEMPOTENT ID
+            const historyId = `hist_${gameId}_${startTime}`;
+            const historyRef = db.collection("cardGameHistory").doc(historyId);
+            t.set(historyRef, {
+              gameId: gameId,
+              winnerIndex: winnerIndex,
+              winnerSelection: gameData.winnerSelection,
+              price: gameData.price,
+              question: gameData.question,
+              startTime: gameData.startTime,
+              endTime: now,
+              createdAt: now
+            });
 
-        // D. Cleanup old entries
-        const entriesSnap = await db.collection("cardGameEntries")
-          .where("gameId", "==", gameId)
-          .get();
-        if (!entriesSnap.empty) {
-          const batch = db.batch();
-          entriesSnap.docs.forEach(d => batch.delete(d.ref));
-          await batch.commit();
+            // 2. Update Existing Document
+            t.update(gameDoc.ref, {
+              question: `${theme.questionTemplates[0]} (${expiryLabel})`,
+              price: price,
+              duration: duration,
+              winnerIndex: -1,
+              winnerSelection: "auto",
+              status: "active",
+              cardImages: theme.cards,
+              themeId: theme.id,
+              startTime: now,
+              updatedAt: now,
+              generatedBy: "Cron_Cycle_Reuse",
+              expiryLabel: expiryLabel,
+              isPremium: isPremium
+            });
+          });
+        }
+        else {
+          // Manual games just become inactive
+          await gameDoc.ref.update({ status: 'inactive', winnerIndex, updatedAt: now });
         }
 
         processedCount++;
