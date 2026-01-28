@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Modal } from "@/components/ui/modal";
+import { cn } from "@/lib/utils";
 
 export default function AdminGamesPage() {
   const [games, setGames] = useState<any[]>([]);
@@ -16,6 +17,7 @@ export default function AdminGamesPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingGame, setEditingGame] = useState<any>(null);
   const [saving, setSaving] = useState(false);
+  const [availableCards, setAvailableCards] = useState<string[]>([]);
 
   const DURATIONS = ["24h", "12h", "6h", "3h", "2h", "1h", "30m", "5m", "1m"];
 
@@ -32,10 +34,8 @@ export default function AdminGamesPage() {
     status: "active",
     isPremium: false,
     cardImages: [
-      "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop",
-      "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop"
+      "/images/cards/1.jpg",
+      "/images/cards/2.jpg"
     ]
   });
 
@@ -51,6 +51,22 @@ export default function AdminGamesPage() {
     return () => unsubGames();
   }, []);
 
+  useEffect(() => {
+    // 2. Fetch Available Cards from Server (Dynamic)
+    const fetchCards = async () => {
+      try {
+        const res = await fetch("/api/admin/cards/list", { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.cards) setAvailableCards(data.cards);
+      } catch (err) {
+        console.error("Error fetching available cards:", err);
+      }
+    };
+
+    fetchCards();
+  }, []);
+
   // Separate Effect for Stats Listeners to avoid re-subscribing to *games* constantly
   const activeIds = games.filter(g => g.status === 'active').map(g => g.id).sort().join(',');
   useEffect(() => {
@@ -60,10 +76,12 @@ export default function AdminGamesPage() {
     activeGames.forEach(game => {
       const q = query(collection(db, "cardGameEntries"), where("gameId", "==", game.id), where("gameStartTime", "==", game.startTime.seconds));
       const unsub = onSnapshot(q, (snap) => {
-        const counts = [0, 0, 0, 0];
+        const cardCount = (game.cardImages || []).length || 2;
+        const counts = new Array(cardCount).fill(0);
         snap.forEach(doc => {
           const selected = doc.data().selectedCards || [];
-          selected.forEach((idx: number) => { if (idx >= 0 && idx < 4) counts[idx]++; });
+          const cardIdx = doc.data().cardIndex !== undefined ? doc.data().cardIndex : (selected[0] ?? -1);
+          if (cardIdx >= 0 && cardIdx < cardCount) counts[cardIdx]++;
         });
         setStats(prev => ({ ...prev, [game.id]: counts }));
       });
@@ -74,6 +92,18 @@ export default function AdminGamesPage() {
   }, [activeIds]); // Only re-sub if active list changes.
 
   const handleOpenModal = (game?: any) => {
+    // Refresh available cards list whenever modal is opened
+    const fetchCards = async () => {
+      try {
+        const res = await fetch("/api/admin/cards/list", { cache: 'no-store' });
+        const data = await res.json();
+        if (data.cards) setAvailableCards(data.cards);
+      } catch (err) {
+        console.error("Error refreshing cards:", err);
+      }
+    };
+    fetchCards();
+
     if (game) {
       setEditingGame(game);
       setFormData({
@@ -85,7 +115,7 @@ export default function AdminGamesPage() {
         betMode: game.betMode || 'fixed',
         status: game.status || "inactive",
         isPremium: game.isPremium || false,
-        cardImages: game.cardImages || formData.cardImages
+        cardImages: (game.cardImages || formData.cardImages).slice(0, 2)
       });
     } else {
       setEditingGame(null);
@@ -99,10 +129,8 @@ export default function AdminGamesPage() {
         status: "active",
         isPremium: false,
         cardImages: [
-          "https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=400&h=600&fit=crop",
-          "https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=400&h=600&fit=crop",
-          "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=400&h=600&fit=crop",
-          "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=600&fit=crop"
+          "/images/cards/1.png",
+          "/images/cards/2.png"
         ]
       });
     }
@@ -127,8 +155,9 @@ export default function AdminGamesPage() {
     try {
       const durationSeconds = DURATIONS_MAP[formData.duration] || 3600;
 
-      const payload = {
+      const payload: any = {
         ...formData,
+        cardImages: formData.cardImages.slice(0, 2),
         duration: durationSeconds,
         updatedAt: serverTimestamp()
       };
@@ -157,7 +186,7 @@ export default function AdminGamesPage() {
 
           // 2. Refill Slot: Create New Auto Game
           const imgs = Array.from({ length: 24 }, (_, i) => `/images/cards/${i + 1}.png`);
-          const shuffled = imgs.sort(() => 0.5 - Math.random()).slice(0, 4);
+          const shuffled = imgs.sort(() => 0.5 - Math.random()).slice(0, 2);
 
           const refillPayload = {
             ...formData,
@@ -326,7 +355,8 @@ export default function AdminGamesPage() {
               <div className="mt-2">
                 <label className="text-xs font-bold text-muted-foreground mr-2">Winning Card Index:</label>
                 <select value={formData.winnerIndex} onChange={e => setFormData({ ...formData, winnerIndex: Number(e.target.value) })} className="h-8 rounded bg-black border border-white/10 text-white text-xs">
-                  {formData.cardImages.map((_, i) => <option key={i} value={i}>Card {i + 1}</option>)}
+                  <option value={0}>KING</option>
+                  <option value={1}>QUEEN</option>
                 </select>
               </div>
             )}
@@ -362,58 +392,91 @@ export default function AdminGamesPage() {
 
           <div className="space-y-2 pt-4">
             <div className="flex items-center justify-between">
-              <label className="text-sm font-bold text-amber-500 flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Card Visuals & Stats</label>
+              <label className="text-sm font-bold text-amber-500 flex items-center gap-2">
+                <ImageIcon className="h-4 w-4" />
+                Card Visuals & Stats
+                <button
+                  type="button"
+                  onClick={() => {
+                    const fetchCards = async () => {
+                      try {
+                        const res = await fetch("/api/admin/cards/list", { cache: 'no-store' });
+                        if (!res.ok) throw new Error("Server error");
+                        const data = await res.json();
+                        if (data.cards) {
+                          setAvailableCards(data.cards);
+                          toast.success("Card list updated!");
+                        }
+                      } catch (err) {
+                        toast.error("Failed to refresh cards");
+                      }
+                    };
+                    fetchCards();
+                  }}
+                  className="p-1 hover:bg-white/10 rounded-full transition-colors"
+                  title="Refresh card list"
+                >
+                  <Sparkles className="h-3 w-3 text-amber-500/50 hover:text-amber-500" />
+                </button>
+              </label>
               <Button type="button" size="sm" variant="outline" onClick={() => {
-                const imgs = Array.from({ length: 24 }, (_, i) => `/images/cards/${i + 1}.png`);
-                const shuffled = imgs.sort(() => 0.5 - Math.random()).slice(0, 4);
+                const pool = availableCards.length >= 2 ? availableCards : ["/images/cards/1.jpg", "/images/cards/2.jpg"];
+                const shuffled = [...pool].sort(() => 0.5 - Math.random()).slice(0, 2);
                 setFormData(prev => ({ ...prev, cardImages: shuffled }));
               }} className="h-7 text-xs border-amber-500/50 text-amber-500 hover:bg-amber-500/10">
-                <Sparkles className="mr-1 h-3 w-3" /> Randomize Cards
+                <Sparkles className="mr-1 h-3 w-3" /> Randomize 2 Cards
               </Button>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              {formData.cardImages.map((img, idx) => {
+              {[0, 1].map((idx) => {
+                const img = formData.cardImages[idx] || (idx === 0 ? "/images/cards/1.jpg" : "/images/cards/2.jpg");
                 const count = editingGame ? (stats[editingGame.id]?.[idx] || 0) : 0;
+
                 // Calculate Prediction (Least Bought)
-                const currentStats = editingGame ? (stats[editingGame.id] || [0, 0, 0, 0]) : [0, 0, 0, 0];
-                // Filter out non-numbers if any
-                const validStats = currentStats.map(n => Number(n) || 0);
+                const currentStats = editingGame ? (stats[editingGame.id] || [0, 0]) : [0, 0];
+                const validStats = currentStats.slice(0, 2).map(n => Number(n) || 0);
                 const minVal = Math.min(...validStats);
-                const isPredicted = count === minVal && formData.winnerSelection === 'auto';
+                const isPredicted = count === minVal && formData.winnerSelection === 'auto' && validStats.some(v => v > 0);
 
                 return (
-                  <div key={idx} className={`space-y-1 p-2 rounded bg-black/20 border transition-all ${isPredicted ? 'border-green-500/50 bg-green-500/10' : 'border-white/5'}`}>
-                    <div className="flex justify-between items-center">
-                      <span className="text-[10px] uppercase font-bold text-muted-foreground">Card {idx + 1}</span>
+                  <div key={idx} className={`space-y-1 p-3 rounded-xl bg-black/40 border transition-all ${isPredicted ? 'border-green-500/50 bg-green-500/10' : 'border-white/10'}`}>
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-[11px] uppercase font-black tracking-widest text-muted-foreground">
+                        {idx === 0 ? "KING" : "QUEEN"} SLOT
+                      </span>
                       <div className="flex flex-col items-end">
-                        <span className="text-[10px] font-bold text-blue-400">{count} Buyers</span>
-                        {isPredicted && <span className="text-[9px] font-black text-green-400 animate-pulse">PREDICTED WINNER</span>}
+                        <span className="text-[10px] font-bold text-blue-400">{count} Active Bets</span>
+                        {isPredicted && <span className="text-[9px] font-black text-green-400 animate-pulse">SMART WINNER</span>}
                       </div>
                     </div>
 
-                    <div className="flex gap-2">
-                      <div className="relative w-10 h-14 shrink-0 rounded overflow-hidden border border-white/20">
-                        <img src={img} alt={`Card ${idx + 1}`} className="w-full h-full object-cover" />
+                    <div className="flex gap-3">
+                      <div className="relative w-12 h-16 shrink-0 rounded-lg overflow-hidden border border-white/20 shadow-lg">
+                        <img src={img} alt={`Slot ${idx + 1}`} className="w-full h-full object-cover" />
                       </div>
                       <select
                         value={img}
                         onChange={e => {
-                          const n = [...formData.cardImages]; n[idx] = e.target.value;
+                          const n = [...formData.cardImages];
+                          n[idx] = e.target.value;
                           setFormData({ ...formData, cardImages: n });
                         }}
-                        className="w-full text-xs bg-zinc-900 border border-white/10 rounded px-2 focus:ring-1 focus:ring-amber-500"
+                        className="w-full text-xs bg-zinc-900 border border-white/10 rounded-lg px-2 h-10 focus:ring-1 focus:ring-amber-500"
                       >
-                        {Array.from({ length: 24 }, (_, i) => `/images/cards/${i + 1}.png`).map(opt => (
+                        {availableCards.map(opt => (
                           <option key={opt} value={opt}>
-                            Image {opt.split('/').pop()}
+                            {opt.split('/').pop()}
                           </option>
                         ))}
                       </select>
                     </div>
 
-                    {editingGame && (
-                      <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mt-1">
-                        <div className="h-full bg-blue-500" style={{ width: `${Math.min(100, count * 5)}%` }} />
+                    {editingGame && validStats.reduce((a, b) => a + b, 0) > 0 && (
+                      <div className="w-full h-1.5 bg-white/5 rounded-full overflow-hidden mt-3">
+                        <div
+                          className={cn("h-full transition-all duration-500", isPredicted ? "bg-green-500" : "bg-blue-500")}
+                          style={{ width: `${(count / validStats.reduce((a, b) => a + b, 0)) * 100}%` }}
+                        />
                       </div>
                     )}
                   </div>

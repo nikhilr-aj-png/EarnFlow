@@ -1,36 +1,41 @@
 import { Firestore, FieldValue, Timestamp } from "firebase-admin/firestore";
 import * as admin from 'firebase-admin';
+import { awardReferralCommission } from "./referralUtils";
 
 /**
  * Calculates the predicted winner based on "Least Bought" logic.
  */
 export async function calculateSmartWinner(db: Firestore, gameId: string, startTime: number) {
   try {
+    // 0. Fetch Game Data to detect card count
+    const gameSnap = await db.collection("cardGames").doc(gameId).get();
+    if (!gameSnap.exists) throw new Error("Game not found");
+    const gameData = gameSnap.data()!;
+    const cardCount = 2; // Strictly locked to 2 cards (KING & QUEEN)
+
     // Precise query: Only consider entries for THIS specific round
     const entriesQ = await db.collection("cardGameEntries")
       .where("gameId", "==", gameId)
       .where("gameStartTime", "==", startTime)
       .get();
 
-    const cardVolumes = [0, 0, 0, 0];
+    const cardVolumes = new Array(cardCount).fill(0);
     let totalVolume = 0;
 
     entriesQ.docs.forEach(e => {
       const data = e.data();
       const price = Number(data.price || 0);
 
-      // Use cardIndex (new granular format) or fallback to selectedCards
       if (data.cardIndex !== undefined) {
         const idx = data.cardIndex;
-        if (idx >= 0 && idx < 4) {
+        if (idx >= 0 && idx < cardCount) {
           cardVolumes[idx] += price;
           totalVolume += price;
         }
       } else {
-        // Legacy fallback
         const selected = data.selectedCards || [];
         selected.forEach((idx: number) => {
-          if (idx >= 0 && idx < 4) {
+          if (idx >= 0 && idx < cardCount) {
             cardVolumes[idx] += price;
             totalVolume += price;
           }
@@ -40,7 +45,7 @@ export async function calculateSmartWinner(db: Firestore, gameId: string, startT
 
     if (totalVolume === 0) {
       return {
-        winnerIndex: Math.floor(Math.random() * 4),
+        winnerIndex: Math.floor(Math.random() * cardCount),
         volumes: cardVolumes,
         method: 'random'
       };
@@ -69,8 +74,8 @@ export async function calculateSmartWinner(db: Firestore, gameId: string, startT
   } catch (error) {
     console.error("Error calculating volume-based smart winner:", error);
     return {
-      winnerIndex: Math.floor(Math.random() * 4),
-      volumes: [0, 0, 0, 0],
+      winnerIndex: Math.floor(Math.random() * 2), // Strictly 2-card fallback
+      volumes: [0, 0],
       method: 'random_fallback'
     };
   }
@@ -169,6 +174,11 @@ export async function awardGameRewards(
             rewardAmount: rewardAmount,
             updatedAt: Timestamp.now()
           });
+
+          // Award Referral Commission (Post-transaction, non-blocking)
+          awardReferralCommission(db, userId, rewardAmount, "Card Game Win")
+            .catch(err => console.error("Game Commission Error:", err));
+
           winnersCount++;
         } else {
           // Loser

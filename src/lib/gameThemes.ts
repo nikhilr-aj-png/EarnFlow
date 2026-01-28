@@ -3,7 +3,7 @@ export interface GameTheme {
   id: string;
   name: string;
   questionTemplates: string[];
-  cards: string[]; // Array of 4 Image URLs
+  cards: string[]; // Array of 2 Image URLs
 }
 
 export const GAME_THEMES: GameTheme[] = [
@@ -12,10 +12,8 @@ export const GAME_THEMES: GameTheme[] = [
     name: "Golden Fortune",
     questionTemplates: ["Find the Golden Ticket", "Who is the Lucky Winner?", "Select the Royal Card", "Ultimate Fortune Choice"],
     cards: [
-      "/images/cards/1.png",
-      "/images/cards/2.png",
-      "/images/cards/3.png",
-      "/images/cards/4.png"
+      "/images/cards/1.jpg",
+      "/images/cards/2.jpg"
     ]
   },
   {
@@ -23,10 +21,8 @@ export const GAME_THEMES: GameTheme[] = [
     name: "Diamond Rush",
     questionTemplates: ["Find the Diamond King", "Select the Rare Gem", "Luxury Choice", "Elite Member Pick"],
     cards: [
-      "/images/cards/5.png",
-      "/images/cards/6.png",
-      "/images/cards/7.png",
-      "/images/cards/8.png"
+      "/images/cards/1.jpg",
+      "/images/cards/2.jpg"
     ]
   },
   {
@@ -34,10 +30,8 @@ export const GAME_THEMES: GameTheme[] = [
     name: "Platinum Series",
     questionTemplates: ["Platinum Winner", "Select the Top Tier", "Exclusive Access Card", "Find the Prestige Pick"],
     cards: [
-      "/images/cards/9.png",
-      "/images/cards/10.png",
-      "/images/cards/11.png",
-      "/images/cards/12.png"
+      "/images/cards/1.jpg",
+      "/images/cards/2.jpg"
     ]
   },
   {
@@ -45,10 +39,8 @@ export const GAME_THEMES: GameTheme[] = [
     name: "Neon Nights",
     questionTemplates: ["Find the Glowing Card", "Night Rider Choice", "Cyber Luck", "Future Win"],
     cards: [
-      "/images/cards/13.png",
-      "/images/cards/14.png",
-      "/images/cards/15.png",
-      "/images/cards/16.png"
+      "/images/cards/1.jpg",
+      "/images/cards/2.jpg"
     ]
   },
   {
@@ -56,10 +48,8 @@ export const GAME_THEMES: GameTheme[] = [
     name: "Royal Elite",
     questionTemplates: ["King's Choice", "Select the Royal Seal", "Majestic Win", "Imperial Luck"],
     cards: [
-      "/images/cards/17.png",
-      "/images/cards/18.png",
-      "/images/cards/19.png",
-      "/images/cards/20.png"
+      "/images/cards/1.jpg",
+      "/images/cards/2.jpg"
     ]
   },
   {
@@ -67,10 +57,8 @@ export const GAME_THEMES: GameTheme[] = [
     name: "Cosmic Luck",
     questionTemplates: ["Universal Winner", "Star Choice", "Galactic Fortune", "Cosmic Card"],
     cards: [
-      "/images/cards/21.png",
-      "/images/cards/22.png",
-      "/images/cards/23.png",
-      "/images/cards/24.png"
+      "/images/cards/1.jpg",
+      "/images/cards/2.jpg"
     ]
   }
 ];

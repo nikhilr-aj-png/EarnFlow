@@ -29,6 +29,17 @@ export default function DashboardLayout({
     }
   }, [user, userData, loading, router]);
 
+  // Image Preloader for Card Game (KING & QUEEN)
+  useEffect(() => {
+    if (user) {
+      const imagesToPreload = ["/images/cards/1.jpg", "/images/cards/2.jpg"];
+      imagesToPreload.forEach((src) => {
+        const img = new Image();
+        img.src = src;
+      });
+    }
+  }, [user]);
+
   if (loading) {
     return (
       <div className="h-screen w-full flex items-center justify-center bg-background">

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 
-export function ReferralCard({ code }: { code: string }) {
+export function ReferralCard({ code, isPremium }: { code: string, isPremium?: boolean }) {
   const handleCopy = () => {
     navigator.clipboard.writeText(`https://earnflow.in/register?ref=${code}`);
     toast.success("Referral link copied!");
@@ -23,7 +23,7 @@ export function ReferralCard({ code }: { code: string }) {
         <CardHeader className="pb-4">
           <CardTitle className="text-xl text-indigo-200">Invite & Earn</CardTitle>
           <CardDescription className="text-indigo-300/60 leading-tight">
-            Earn 500 coins for friend joins + 20% commission on their earnings.
+            Earn {isPremium ? '1000' : '500'} coins for friend joins + {isPremium ? '20%' : '5%'} commission on their earnings.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -48,7 +48,7 @@ export function ReferralCard({ code }: { code: string }) {
               <div className="text-muted-foreground text-[10px] uppercase tracking-wider">Earned</div>
             </div>
             <div className="p-2 rounded-lg bg-black/40 border border-indigo-500/10">
-              <div className="font-bold text-lg text-green-500">5%</div>
+              <div className="font-bold text-lg text-green-500">{isPremium ? '20%' : '5%'}</div>
               <div className="text-muted-foreground text-[10px] uppercase tracking-wider">Bonus</div>
             </div>
           </div>

@@ -213,7 +213,10 @@ export default function DashboardPage() {
             )}
           </div>
 
-          <ReferralCard code={userData?.referralCode || "INVITE"} />
+          <ReferralCard
+            code={userData?.referralCode || "INVITE"}
+            isPremium={userData?.isPremium}
+          />
         </motion.div>
       </div>
 
@@ -270,7 +273,12 @@ function DashboardGameCard({ game }: { game: any }) {
           {dashTime > 0 && <span className="text-[10px] font-mono text-red-500 animate-pulse flex items-center gap-1"><Timer className="h-3 w-3" /> {dashTime}s</span>}
         </div>
         <div className="flex items-center justify-between">
-          <span className="text-xs font-bold text-amber-500 flex items-center gap-1"><Coins className="h-3 w-3" /> {game.price}</span>
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-amber-500 flex items-center gap-1"><Coins className="h-3 w-3" /> {game.price}</span>
+            {game.isPremium && (
+              <span className="bg-amber-500/10 text-amber-500 text-[8px] px-1.5 py-0.5 rounded border border-amber-500/20 font-black tracking-tighter uppercase italic">Premium</span>
+            )}
+          </div>
           <div className="bg-white/10 hover:bg-white/20 text-white text-[10px] px-2 py-1 rounded font-bold uppercase tracking-wider">PLAY</div>
         </div>
       </div>

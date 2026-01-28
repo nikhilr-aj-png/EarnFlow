@@ -119,11 +119,10 @@ export function PlansContent() {
           <CardContent className="space-y-4">
             <div className="text-4xl font-bold">Free</div>
             <ul className="space-y-2 text-sm">
-              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" /> daily check-in bonus</li>
-              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" /> Access to basic tasks</li>
-              <li className="flex items-center"><X className="mr-2 h-4 w-4 text-muted-foreground" /> No premium quizzes</li>
-              <li className="flex items-center"><X className="mr-2 h-4 w-4 text-muted-foreground" /> Standard withdrawal speed</li>
-              <li className="flex items-center"><X className="mr-2 h-4 w-4 text-muted-foreground" /> 5% Referral Commission</li>
+              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" /> Free Games & Tasks</li>
+              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" /> Standard Withdrawal</li>
+              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-green-500" /> 5% Referral Commission</li>
+              <li className="flex items-center opacity-50"><X className="mr-2 h-4 w-4" /> No Premium Games & Tasks</li>
             </ul>
           </CardContent>
           <CardFooter>
@@ -154,11 +153,11 @@ export function PlansContent() {
             </div>
 
             <ul className="space-y-2 text-sm">
-              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Double daily check-in bonus</li>
-              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Access to high-paying tasks</li>
-              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Unlimited Premium Quizzes</li>
-              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Priority Fast Withdrawal (4hrs)</li>
+              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Exclusive Premium Tasks</li>
+              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> High-Stakes Premium Games</li>
+              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Priority Withdrawal (4hrs)</li>
               <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> 20% Referral Commission</li>
+              <li className="flex items-center"><Check className="mr-2 h-4 w-4 text-amber-500" /> Lifetime Support</li>
             </ul>
           </CardContent>
           <CardFooter>

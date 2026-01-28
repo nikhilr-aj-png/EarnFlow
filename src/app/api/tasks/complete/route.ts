@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
 import { Timestamp, FieldValue } from "firebase-admin/firestore";
+import { awardReferralCommission } from "@/lib/referralUtils";
 
 export async function POST(req: Request) {
   try {
@@ -58,6 +59,11 @@ export async function POST(req: Request) {
       });
 
       console.log(`[TASK] Success for User ${userId}, Task ${taskId}, Earned: ${rewardNum}`);
+
+      // Award Referral Commission (Post-transaction, non-blocking for user)
+      awardReferralCommission(db, userId, rewardNum, "Task Completion")
+        .catch(err => console.error("Task Commission Error:", err));
+
       return { success: true, newCoins: rewardNum };
     });
 

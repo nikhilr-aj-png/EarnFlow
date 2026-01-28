@@ -40,9 +40,26 @@ export async function createUser(uid: string, data: { name: string; email: strin
       const snap = await getDocs(q);
       if (!snap.empty) {
         const referrerDoc = snap.docs[0];
+        const referrerData = referrerDoc.data();
+        const isPremium = referrerData.isPremium === true;
+
+        // Tiered Reward: 1000 for Premium, 500 for Free
+        const bonusAmount = isPremium ? 1000 : 500;
+
         await updateDoc(doc(db, "users", referrerDoc.id), {
-          coins: increment(500), // Reward for referring
-          totalEarned: increment(500)
+          coins: increment(bonusAmount),
+          totalEarned: increment(bonusAmount)
+        });
+
+        // Record Activity for Referrer (Client-side usage is fine here as it's a helper)
+        const activityRef = doc(collection(db, "activities"));
+        await setDoc(activityRef, {
+          userId: referrerDoc.id,
+          type: 'referral_bonus',
+          amount: bonusAmount,
+          title: "Referral Bonus 🎁",
+          metadata: { joinedUser: data.name },
+          createdAt: serverTimestamp()
         });
       }
     }

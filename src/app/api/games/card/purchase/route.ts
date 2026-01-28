@@ -24,11 +24,16 @@ export async function POST(req: Request) {
         throw new Error("Insufficient coins");
       }
 
-      // 2. Get Game Data to verify Bet Mode
+      // 2. Get Game Data
       const gameRef = db.collection("cardGames").doc(gameId);
       const gameSnap = await transaction.get(gameRef);
       if (!gameSnap.exists) throw new Error("Game not found");
       const gameData = gameSnap.data();
+
+      // 2b. STRICT PREMIUM CHECK
+      if (gameData.isPremium && !userData.isPremium) {
+        throw new Error("This is a Premium Game. Upgrade your plan to participate!");
+      }
 
       // Validate Price vs Bet Mode
       if (gameData.betMode === 'fixed') {

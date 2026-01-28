@@ -3,6 +3,7 @@ import { Outfit, Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import Script from "next/script";
+import { MonetagScript } from "@/components/features/MonetagScript";
 
 
 const outfit = Outfit({
@@ -32,13 +33,8 @@ export default function RootLayout({
       <body
         className={`${outfit.variable} ${inter.variable} antialiased font-sans bg-background text-foreground`}
       >
-        {/* --- PROPELLERADS SITE-WIDE SCRIPT (Popunder / MultiTag) --- */}
-        <Script id="propeller-tag" strategy="afterInteractive">
-          {`
-            // 👉 PASTE YOUR PROPELLERADS SITE-WIDE SCRIPT HERE
-            // For example: (function(s,u,z,p){s.src=u,s.setAttribute('data-zone',z),p.appendChild(s);})(document.createElement('script'),'https://.../tag.min.js', ZONE_ID, document.body||document.documentElement)
-          `}
-        </Script>
+        {/* --- MONETAG ADS (Banner & Interstitial) --- */}
+        <MonetagScript />
 
 
         <Providers>{children}</Providers>

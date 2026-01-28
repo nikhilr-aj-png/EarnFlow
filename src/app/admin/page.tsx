@@ -62,8 +62,8 @@ export default function AdminDashboard() {
         });
 
 
-        // Recent Activity
-        const recentQ = query(collection(db, "withdrawals"), orderBy("createdAt", "desc"), limit(5));
+        // Recent Platform Activity (Bets, Wins, Tasks, Payments)
+        const recentQ = query(collection(db, "activities"), orderBy("createdAt", "desc"), limit(15));
         const recentSnap = await getDocs(recentQ);
         setRecentRequests(recentSnap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
 
@@ -79,6 +79,17 @@ export default function AdminDashboard() {
   if (loading) {
     return <div className="flex h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin text-red-500" /></div>;
   }
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'game_win': return 'text-green-400';
+      case 'bet': return 'text-zinc-400';
+      case 'deposit': return 'text-blue-400';
+      case 'withdrawal': return 'text-red-400';
+      case 'upgrade': return 'text-amber-400';
+      default: return 'text-zinc-500';
+    }
+  };
 
   return (
     <div className="space-y-6 sm:space-y-8">
@@ -168,10 +179,10 @@ export default function AdminDashboard() {
       </div>
 
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-        <Card className="col-span-4 border-white/10">
+      <div className="grid gap-4 grid-cols-1">
+        <Card className="border-white/10">
           <CardHeader>
-            <CardTitle>Recent Withdrawal Activity</CardTitle>
+            <CardTitle>Recent Platform Activity</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -179,13 +190,19 @@ export default function AdminDashboard() {
                 <p className="text-sm text-muted-foreground">No recent activity.</p>
               ) : (
                 recentRequests.map((req) => (
-                  <div key={req.id} className="flex items-center justify-between p-2 rounded hover:bg-white/5 transition-colors">
-                    <div className="space-y-1">
-                      <p className="text-sm font-medium leading-none">{req.userEmail || "User"} requested ₹{req.amount}</p>
-                      <p className="text-xs text-muted-foreground uppercase">{req.status === 'approved' ? 'successful' : req.status}</p>
+                  <div key={req.id} className="flex items-center justify-between p-3 rounded-xl hover:bg-white/5 transition-colors border border-white/5 bg-white/[0.01]">
+                    <div className="flex items-center gap-4">
+                      <div className={`h-2 w-2 rounded-full ${getActivityColor(req.type).replace('text', 'bg')}`} />
+                      <div className="space-y-1">
+                        <p className="text-sm font-bold text-white capitalize">{req.title || req.type}</p>
+                        <p className="text-xs text-muted-foreground">{req.userEmail || "System Event"}</p>
+                      </div>
                     </div>
-                    <div className="text-xs text-muted-foreground">
-                      {req.method}
+                    <div className="flex flex-col items-end">
+                      <span className={`text-sm font-black ${getActivityColor(req.type)}`}>
+                        {req.type === 'bet' || req.type === 'withdrawal' ? '-' : '+'}{req.amount}
+                      </span>
+                      <p className="text-[10px] text-zinc-500 uppercase font-black">{req.type}</p>
                     </div>
                   </div>
                 ))

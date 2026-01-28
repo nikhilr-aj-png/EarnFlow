@@ -102,8 +102,21 @@ export default function TasksPage() {
       return;
     }
 
-    setActiveTask(task);
-    handleFinishTask(task);
+    // MONETAG AD TRIGGER (For Free Tasks)
+    const isFreeEarningTask = !task.isPremium && ['quiz', 'visit', 'app'].includes(task.type);
+
+    if (isFreeEarningTask) {
+      toast.info("Preparing your task... Enjoy the ad! 🎭", { duration: 3000 });
+      setActiveTask(task);
+
+      // Delay to allow interstitial to potentially show/load
+      setTimeout(() => {
+        handleFinishTask(task);
+      }, 3000);
+    } else {
+      setActiveTask(task);
+      handleFinishTask(task);
+    }
   };
 
   const handleFinishTask = (task: Task) => {

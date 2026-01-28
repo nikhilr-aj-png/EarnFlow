@@ -35,6 +35,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
   const [pastWinners, setPastWinners] = useState<any[]>([]);
   const [selectedCards, setSelectedCards] = useState<number[]>([]);
   const [currentBetAmount, setCurrentBetAmount] = useState<number>(0);
+  const [loadedImages, setLoadedImages] = useState<Record<string, boolean>>({});
 
   const isCalculating = timeLeft <= 0 && !reveal;
   const isArchived = game?.winnerSelection === 'manual';
@@ -209,6 +210,10 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
     // In Quick Mode, we use currentBetAmount. In Fixed Mode, we use game.price.
     const betPrice = game.betMode === 'quick' ? currentBetAmount : game.price;
 
+    if (game.isPremium && !userData?.isPremium) {
+      return toast.error("Upgrade to Premium to play this game! 🔐");
+    }
+
     if ((userData?.coins || 0) < betPrice) return toast.error("Need more coins!");
 
     setIsProcessingSelection(true);
@@ -254,7 +259,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
               transition={{ delay: i * 0.05 }}
               className="px-4 py-1.5 rounded-full bg-[#1c1d24] border border-[#2c2d3a] text-xs font-black text-amber-500 hover:bg-amber-500 hover:text-black transition-colors cursor-default whitespace-nowrap"
             >
-              Card #{pw.winnerIndex + 1}
+              {pw.winnerIndex === 0 ? "King" : "Queen"}
             </motion.div>
           ))}
         </div>
@@ -312,8 +317,8 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
           </div>
 
           {/* Cards Grid */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-8 px-2">
-            {game.cardImages.map((img: string, idx: number) => {
+          <div className="flex justify-center gap-6 md:gap-16 px-2">
+            {game.cardImages.slice(0, 2).map((img: string, idx: number) => {
               const isWinner = reveal && idx === game.winnerIndex;
               const isSelected = selectedCards.includes(idx);
               const isDimmed = reveal && !isWinner;
@@ -321,17 +326,52 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
               return (
                 <motion.div
                   key={idx}
-                  whileHover={!reveal && isPlaying ? { y: -10, scale: 1.02 } : {}}
-                  className="relative group cursor-pointer"
+                  whileHover={!reveal && isPlaying ? { y: -8, scale: 1.02 } : {}}
+                  className="relative group cursor-pointer w-32 md:w-56"
                   onClick={() => selectCard(idx)}
                 >
                   <div className={cn(
-                    "aspect-[3/4.2] rounded-3xl bg-[#1c1d24] border-2 border-transparent relative overflow-hidden transition-all duration-500 shadow-xl",
-                    isSelected ? "border-amber-500 bg-amber-500/5 shadow-[0_0_30px_rgba(245,158,11,0.3)]" : "hover:border-zinc-700",
-                    isWinner ? "border-green-500 bg-green-500/5 shadow-[0_0_60px_rgba(34,197,94,0.5)] z-20 scale-105" : "",
+                    "aspect-[3/4.2] rounded-2xl bg-[#14151a] border-2 border-transparent relative overflow-hidden transition-all duration-500 shadow-xl flex items-center justify-center",
+                    isSelected ? "border-amber-500 bg-amber-500/5 shadow-[0_0_25px_rgba(245,158,11,0.2)]" : "hover:border-zinc-700",
+                    isWinner ? "border-green-500 bg-green-500/5 shadow-[0_0_50px_rgba(34,197,94,0.4)] z-20 scale-105" : "",
                     isDimmed ? "opacity-20 grayscale scale-95" : ""
                   )}>
-                    <img src={img} className="w-full h-full object-cover p-2 rounded-[2.5rem]" alt="Card" />
+                    {/* Background loader placeholder */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-[#1c1d24] to-[#0c0d10] animate-pulse -z-10" />
+
+                    <img
+                      src={img}
+                      className={cn(
+                        "w-full h-full object-cover p-1.5 rounded-[2rem] relative z-10 transition-opacity duration-500",
+                        loadedImages[img] ? "opacity-100" : "opacity-0"
+                      )}
+                      alt=""
+                      loading="eager"
+                      onLoad={() => setLoadedImages(prev => ({ ...prev, [img]: true }))}
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = 'none';
+                        setLoadedImages(prev => ({ ...prev, [img]: true }));
+                      }}
+                    />
+
+                    {!loadedImages[img] && (
+                      <div className="absolute inset-0 flex items-center justify-center z-20">
+                        <Loader2 className="h-6 w-6 animate-spin text-amber-500/20" />
+                      </div>
+                    ) /* URL-based tracking avoids stuck spinner on re-render */}
+
+                    {/* KING/QUEEN Labels */}
+                    <div className="absolute top-3 left-0 right-0 flex flex-col items-center gap-1 z-30">
+                      {game.isPremium && (
+                        <div className="bg-amber-600 text-black px-3 py-0.5 rounded-full text-[8px] font-black uppercase tracking-tighter border border-amber-400/50 shadow-xl">
+                          Premium Card
+                        </div>
+                      )}
+                      <div className="bg-black/80 px-4 py-1 rounded-full text-[10px] font-black text-amber-500 border border-amber-500/20 uppercase tracking-[0.2em] shadow-lg">
+                        {idx === 0 ? "KING" : "QUEEN"}
+                      </div>
+                    </div>
 
                     <AnimatePresence>
                       {reveal && isWinner && (
@@ -347,10 +387,6 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                         </motion.div>
                       )}
                     </AnimatePresence>
-
-                    <div className="absolute top-5 left-5 flex gap-1">
-                      <div className="bg-black/80 px-3 py-1 rounded-full text-[10px] font-black text-amber-500 border border-amber-500/20 uppercase tracking-widest">Card #{idx + 1}</div>
-                    </div>
                   </div>
 
                   <button
@@ -359,10 +395,18 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                       "w-full mt-4 py-3 rounded-2xl text-xs font-black uppercase tracking-[0.2em] transition-all border shadow-lg",
                       isSelected
                         ? "bg-amber-500 text-black border-amber-500 shadow-amber-500/20"
-                        : "bg-[#1c1d24] text-zinc-400 border-[#2c2d3a] hover:text-white hover:border-zinc-500"
+                        : (game.isPremium && !userData?.isPremium)
+                          ? "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20 cursor-not-allowed"
+                          : "bg-[#1c1d24] text-zinc-400 border-[#2c2d3a] hover:text-white hover:border-zinc-500"
                     )}
                   >
-                    {isSelected ? "Bet Active" : isPlaying ? "SELECT CARD" : "LOCKED"}
+                    {isSelected
+                      ? "Bet Active"
+                      : (game.isPremium && !userData?.isPremium)
+                        ? "UPGRADE TO PLAY"
+                        : isPlaying
+                          ? "SELECT CARD"
+                          : "LOCKED"}
                   </button>
                 </motion.div>
               );
@@ -482,7 +526,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                           "h-10 w-10 rounded-full flex items-center justify-center text-[10px] font-black border uppercase italic transition-colors",
                           isWin ? "bg-green-500 border-green-400 text-black" : "bg-zinc-800 border-amber-500/20 text-amber-500"
                         )}>
-                          #{(bet.cardIndex ?? 0) + 1}
+                          {bet.cardIndex === 0 ? "K" : "Q"}
                         </div>
                         <div className="flex flex-col">
                           <span className="text-xs font-black text-white italic">
@@ -492,7 +536,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                             "text-[10px] font-bold uppercase leading-none",
                             isWin ? "text-green-500" : isLoss ? "text-red-500" : "text-zinc-500"
                           )}>
-                            {isWin ? "Victory Achievement" : isLoss ? "Crashed Card" : `Placed on Card #${(bet.cardIndex ?? 0) + 1}`}
+                            {isWin ? "Victory Achievement" : isLoss ? "Crashed Card" : `Placed on ${bet.cardIndex === 0 ? "King" : "Queen"}`}
                           </span>
                         </div>
                       </div>

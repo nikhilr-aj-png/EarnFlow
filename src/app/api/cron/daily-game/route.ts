@@ -89,7 +89,9 @@ export async function GET() {
               winnerIndex: -1,
               winnerSelection: "auto",
               status: "active",
-              cardImages: theme.cards,
+              cardImages: (gameData.cardImages && gameData.cardImages.length === 2)
+                ? gameData.cardImages
+                : theme.cards.slice(0, 2), // Absolute 2-card enforcement
               themeId: theme.id,
               startTime: now,
               updatedAt: now,

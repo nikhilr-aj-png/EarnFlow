@@ -11,7 +11,9 @@ import {
   LogOut,
   CreditCard,
   MessageSquare,
-  Zap
+  Zap,
+  Database,
+  Megaphone
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -24,7 +26,9 @@ const adminSidebarItems = [
   { name: "Payments", href: "/admin/payments", icon: CreditCard },
   { name: "Withdrawals", href: "/admin/withdrawals", icon: ArrowUpRight },
   { name: "Automation (AI)", href: "/admin/automation", icon: Zap },
+  { name: "Database Cleanup", href: "/admin/cleanup", icon: Database },
   { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Ad Management", href: "/admin/ads", icon: Megaphone },
   { name: "Support", href: "/admin/support", icon: MessageSquare },
 ];
 

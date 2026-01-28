@@ -12,7 +12,8 @@ export default function AdSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [adConfig, setAdConfig] = useState({
-    bannerAdCode: ""
+    monetagZoneTag: "",
+    monetagInterstitialTag: ""
   });
 
   useEffect(() => {
@@ -72,9 +73,27 @@ export default function AdSettingsPage() {
             <label className="text-sm font-bold">Banner Ad Code</label>
             <textarea
               placeholder='<div id="banner">...</div>'
-              value={adConfig.bannerAdCode}
-              onChange={(e) => setAdConfig({ ...adConfig, bannerAdCode: e.target.value })}
+              value={adConfig.monetagZoneTag}
+              onChange={(e) => setAdConfig({ ...adConfig, monetagZoneTag: e.target.value })}
               className="w-full min-h-[100px] rounded-md border border-white/10 bg-black/20 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card className="bg-white/5 border-white/10">
+        <CardHeader>
+          <CardTitle className="text-blue-500">Interstitial Ads (Tasks)</CardTitle>
+          <CardDescription>Paste your Monetag Interstitial scripts here. These will show when starting a task.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-bold">Interstitial Tag / Script</label>
+            <textarea
+              placeholder='<script src="..."></script>'
+              value={(adConfig as any).monetagInterstitialTag || ""}
+              onChange={(e) => setAdConfig({ ...adConfig, monetagInterstitialTag: e.target.value } as any)}
+              className="w-full min-h-[150px] font-mono rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
         </CardContent>

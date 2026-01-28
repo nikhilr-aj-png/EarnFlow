@@ -5,25 +5,30 @@ import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 
 export function MonetagScript() {
-  const [scriptTag, setScriptTag] = useState<string | null>(null);
+  const [scripts, setScripts] = useState<{ banner: string, interstitial: string }>({ banner: "", interstitial: "" });
 
   useEffect(() => {
     const fetchScript = async () => {
       try {
         const snap = await getDoc(doc(db, "settings", "ads"));
-        if (snap.exists() && snap.data().monetagZoneTag) {
-          setScriptTag(snap.data().monetagZoneTag);
+        if (snap.exists()) {
+          const data = snap.data();
+          setScripts({
+            banner: data.monetagZoneTag || "",
+            interstitial: data.monetagInterstitialTag || ""
+          });
         }
       } catch (e) {
-        console.error("Failed to load Monetag Script:", e);
+        console.error("Failed to load Monetag Scripts:", e);
       }
     };
     fetchScript();
   }, []);
 
-  if (!scriptTag) return null;
-
   return (
-    <div dangerouslySetInnerHTML={{ __html: scriptTag }} />
+    <>
+      {scripts.banner && <div dangerouslySetInnerHTML={{ __html: scripts.banner }} />}
+      {scripts.interstitial && <div dangerouslySetInnerHTML={{ __html: scripts.interstitial }} />}
+    </>
   );
 }
