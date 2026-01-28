@@ -108,12 +108,15 @@ export default function TasksPage() {
     }
 
     // MONETAG AD TRIGGER (For Free Tasks)
-    const isFreeEarningTask = !task.isPremium && ['quiz', 'visit', 'app'].includes(task.type);
+    const isFreeEarningTask = !task.isPremium && !userData?.isPremium && ['quiz', 'visit', 'app'].includes(task.type);
 
     if (isFreeEarningTask) {
       setActiveTask(task);
       setIsAdLockOpen(true);
       setAdCountdown(5);
+
+      // Force Ad Refresh
+      if ((window as any).refreshMonetagAds) (window as any).refreshMonetagAds();
 
       // Check AdBlock
       if ((window as any).__isMonetagBlocked) {
@@ -340,6 +343,9 @@ export default function TasksPage() {
                 ) : (
                   <button
                     onClick={() => {
+                      // One last ad trigger attempt
+                      if ((window as any).refreshMonetagAds) (window as any).refreshMonetagAds();
+
                       setIsAdLockOpen(false);
                       handleFinishTask(activeTask);
                     }}

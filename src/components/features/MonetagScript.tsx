@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { doc, getDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { useAuth } from "@/contexts/AuthContext";
 
 // Extend Window interface for types
 declare global {
@@ -13,25 +12,15 @@ declare global {
 }
 
 export function MonetagScript() {
-  const [scripts, setScripts] = useState<{ banner: string, interstitial: string }>({ banner: "", interstitial: "" });
+  const { userData } = useAuth();
+  const [scripts] = useState({
+    vignette: `<script>(function(s){s.dataset.zone='10533581',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
+    popunder: `<script>(function(s){s.dataset.zone='10533918',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
+    inPagePush: `<script>(function(s){s.dataset.zone='10533944',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`
+  });
 
-  useEffect(() => {
-    const fetchScript = async () => {
-      try {
-        const snap = await getDoc(doc(db, "settings", "ads"));
-        if (snap.exists()) {
-          const data = snap.data();
-          setScripts({
-            banner: data.monetagZoneTag || "",
-            interstitial: data.monetagInterstitialTag || ""
-          });
-        }
-      } catch (e) {
-        console.error("Failed to load Monetag Scripts:", e);
-      }
-    };
-    fetchScript();
-  }, []);
+  // 💎 PREMIUM BYPASS: If user is premium, dont load any ads
+  if (userData?.isPremium) return null;
 
   useEffect(() => {
     // Helper to execute scripts from HTML
@@ -61,13 +50,15 @@ export function MonetagScript() {
       });
     };
 
-    if (scripts.banner) executeScripts(scripts.banner, 'banner');
-    if (scripts.interstitial) executeScripts(scripts.interstitial, 'interstitial');
+    if (scripts.vignette) executeScripts(scripts.vignette, 'vignette');
+    if (scripts.popunder) executeScripts(scripts.popunder, 'popunder');
+    if (scripts.inPagePush) executeScripts(scripts.inPagePush, 'inpagepush');
 
     // Initial check: if no scripts after 3s, assume blocked or empty
     const timer = setTimeout(() => {
-      if (!scripts.interstitial && !scripts.banner) return;
-      if (!document.getElementById('script-executed-interstitial') && !document.getElementById('script-executed-banner')) {
+      if (!document.getElementById('script-executed-vignette') &&
+        !document.getElementById('script-executed-popunder') &&
+        !document.getElementById('script-executed-inpagepush')) {
         window.__isMonetagBlocked = true;
       }
     }, 3000);
@@ -75,8 +66,9 @@ export function MonetagScript() {
     // Expose refresh function
     window.refreshMonetagAds = () => {
       console.log("Refreshing Monetag Ads...");
-      if (scripts.banner) executeScripts(scripts.banner, 'banner');
-      if (scripts.interstitial) executeScripts(scripts.interstitial, 'interstitial');
+      if (scripts.vignette) executeScripts(scripts.vignette, 'vignette');
+      if (scripts.popunder) executeScripts(scripts.popunder, 'popunder');
+      if (scripts.inPagePush) executeScripts(scripts.inPagePush, 'inpagepush');
     };
 
     return () => {
@@ -87,11 +79,14 @@ export function MonetagScript() {
 
   return (
     <>
-      <div id="monetag-banner-container" dangerouslySetInnerHTML={{
-        __html: scripts.banner.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+      <div id="monetag-vignette-container" dangerouslySetInnerHTML={{
+        __html: scripts.vignette.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
       }} />
-      <div id="monetag-interstitial-container" dangerouslySetInnerHTML={{
-        __html: scripts.interstitial.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+      <div id="monetag-popunder-container" dangerouslySetInnerHTML={{
+        __html: scripts.popunder.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
+      }} />
+      <div id="monetag-inpagepush-container" dangerouslySetInnerHTML={{
+        __html: scripts.inPagePush.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
       }} />
     </>
   );
