@@ -78,6 +78,36 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // 2. Global Automation Heartbeat (Passive Background Worker)
+  useEffect(() => {
+    if (!user) return;
+
+    const runCrons = async () => {
+      const key = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+      if (!key) return;
+
+      try {
+        // Pulse Card Game Cycling (Every 90s)
+        fetch(`/api/cron/daily-game?key=${key}`).catch(() => { });
+
+        // Pulse Quiz Generation (Every 5 mins)
+        const now = new Date();
+        if (now.getMinutes() % 5 === 0) {
+          fetch(`/api/cron/daily-quiz?key=${key}`).catch(() => { });
+        }
+
+        // Pulse Leaderboard Awards (Every 15 mins)
+        if (now.getMinutes() % 15 === 0) {
+          fetch(`/api/cron/leaderboard-award?key=${key}`).catch(() => { });
+        }
+      } catch (e) { }
+    };
+
+    runCrons();
+    const interval = setInterval(runCrons, 90000); // 90s Pulse
+    return () => clearInterval(interval);
+  }, [user]);
+
   const signOut = async () => {
     await firebaseSignOut(auth);
     setUserData(null);

@@ -12,9 +12,9 @@ export async function GET(req: NextRequest) {
   if (
     process.env.NODE_ENV === 'production' &&
     authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
-    req.nextUrl.searchParams.get('key') !== process.env.NEXT_PUBLIC_FIREBASE_API_KEY // Allow manual run with backup key (simplified)
+    req.nextUrl.searchParams.get('key') !== process.env.NEXT_PUBLIC_FIREBASE_API_KEY
   ) {
-    // return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   try {

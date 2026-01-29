@@ -1,7 +1,19 @@
 import { NextResponse } from "next/server";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
 
-export async function GET() {
+export async function GET(req: any) {
+  // 1. Security Check
+  const authHeader = req.headers.get('authorization');
+  const queryKey = new URL(req.url).searchParams.get('key');
+
+  if (
+    process.env.NODE_ENV === 'production' &&
+    authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
+    queryKey !== process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+  ) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const admin = getFirebaseAdmin();
     const db = admin.firestore();
