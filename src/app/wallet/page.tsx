@@ -112,42 +112,42 @@ export default function WalletPage() {
         <div className="lg:col-span-2 space-y-8">
 
           {/* Cards Grid */}
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             {/* Coin Card (Black Card Style) */}
-            <div className="relative overflow-hidden rounded-3xl bg-zinc-900 border border-white/10 p-8 shadow-2xl flex flex-col justify-between h-[220px] group">
+            <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-zinc-900 border border-white/10 p-6 sm:p-8 shadow-2xl flex flex-col justify-between min-h-[180px] sm:h-[220px] group">
               <div className="absolute inset-0 bg-gradient-to-br from-zinc-800/50 to-black pointer-events-none" />
               <div className="absolute -right-10 -top-10 h-40 w-40 bg-white/5 rounded-full blur-3xl group-hover:bg-white/10 transition-colors" />
 
               <div className="relative z-10 flex justify-between items-start">
-                <div className="p-3 bg-white/5 rounded-2xl border border-white/5">
-                  <Coins className="h-6 w-6 text-white" />
+                <div className="p-2 sm:p-3 bg-white/5 rounded-xl sm:rounded-2xl border border-white/5">
+                  <Coins className="h-5 v-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <span className="font-mono text-zinc-500 tracking-widest text-xs">EARNFLOW COINS</span>
+                <span className="font-mono text-zinc-500 tracking-widest text-[10px]">COINS</span>
               </div>
 
               <div className="relative z-10">
-                <div className="text-4xl font-black text-white tracking-tight mb-1">{coins.toLocaleString()}</div>
-                <div className="text-sm text-zinc-400 font-medium">Total Balance</div>
+                <div className="text-3xl sm:text-4xl font-black text-white tracking-tight mb-1">{coins.toLocaleString()}</div>
+                <div className="text-xs sm:text-sm text-zinc-400 font-medium uppercase tracking-widest">Total Balance</div>
               </div>
             </div>
 
             {/* Cash Card (Gold Card Style) */}
-            <div className="relative overflow-hidden rounded-3xl bg-amber-500 border border-amber-400 p-8 shadow-2xl shadow-amber-500/20 flex flex-col justify-between h-[220px] group">
+            <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-amber-500 border border-amber-400 p-6 sm:p-8 shadow-2xl shadow-amber-500/20 flex flex-col justify-between min-h-[180px] sm:h-[220px] group">
               <div className="absolute inset-0 bg-gradient-to-br from-amber-400 to-amber-600 pointer-events-none" />
               <div className="absolute -right-10 -bottom-10 h-40 w-40 bg-white/20 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700" />
 
               <div className="relative z-10 flex justify-between items-start">
-                <div className="p-3 bg-black/10 rounded-2xl border border-black/5">
-                  <Wallet className="h-6 w-6 text-black" />
+                <div className="p-2 sm:p-3 bg-black/10 rounded-xl sm:rounded-2xl border border-black/5">
+                  <Wallet className="h-5 v-5 sm:h-6 sm:w-6 text-black" />
                 </div>
-                <span className="font-mono text-amber-900/60 font-black tracking-widest text-xs">CASH VALUE</span>
+                <span className="font-mono text-amber-900/60 font-black tracking-widest text-[10px]">CASH VALUE</span>
               </div>
 
               <div className="relative z-10">
-                <div className="text-4xl font-black text-black tracking-tight mb-1 flex items-baseline">
-                  <span className="text-2xl mr-1">₹</span>{balance.toFixed(2)}
+                <div className="text-3xl sm:text-4xl font-black text-black tracking-tight mb-1 flex items-baseline">
+                  <span className="text-xl sm:text-2xl mr-1">₹</span>{balance.toFixed(2)}
                 </div>
-                <div className="text-sm text-amber-900/70 font-bold">Available to Withdraw</div>
+                <div className="text-xs sm:text-sm text-amber-900/70 font-bold uppercase tracking-widest">Available Cash</div>
               </div>
             </div>
           </div>

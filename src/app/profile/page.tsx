@@ -71,55 +71,51 @@ export default function ProfilePage() {
   };
 
   return (
-    <div className="space-y-8 max-w-2xl mx-auto py-8">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold tracking-tight">Profile Settings</h1>
-        <p className="text-muted-foreground">Manage your account information and security.</p>
+    <div className="space-y-8 max-w-2xl mx-auto py-4 sm:py-8 px-2 sm:px-0">
+      <div className="flex flex-col gap-2 text-center sm:text-left">
+        <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter">Profile Settings</h1>
+        <p className="text-muted-foreground text-sm">Manage your account information and security.</p>
       </div>
 
       <div className="grid gap-6">
         {/* Personal Information */}
-        <Card className="border-white/10 bg-card/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="border-white/10 bg-card/50 rounded-2xl sm:rounded-3xl">
+          <CardHeader className="px-5 sm:px-6">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
               <User className="h-5 w-5 text-amber-500" />
               Personal Information
             </CardTitle>
-            <CardDescription>Update your public display name.</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Update your public display name.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 sm:px-6 pb-6">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Full Name</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Full Name</label>
                 <Input
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Your Name"
-                  className="bg-background/50 border-white/10"
+                  className="h-12 bg-background/50 border-white/10 rounded-xl"
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium">Unique ID</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={userData?.referralCode || "Loading..."}
-                    disabled
-                    className="bg-background/50 border-white/10 font-mono text-amber-500 font-bold"
-                  />
-                </div>
-
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Unique ID</label>
+                <Input
+                  value={userData?.referralCode || "Loading..."}
+                  disabled
+                  className="h-12 bg-background/50 border-white/10 font-mono text-amber-500 font-black tracking-widest rounded-xl disabled:opacity-100"
+                />
               </div>
 
               <div className="space-y-2">
-                <label className="text-sm font-medium">Email Address</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Email Address</label>
                 <Input
                   value={user?.email || ""}
                   disabled
-                  className="bg-background/50 border-white/5 opacity-50 cursor-not-allowed"
+                  className="h-12 bg-black/40 border-white/5 opacity-50 cursor-not-allowed rounded-xl"
                 />
-                <p className="text-xs text-muted-foreground">Email cannot be changed.</p>
               </div>
-              <Button type="submit" disabled={loading} className="w-full md:w-auto">
+              <Button type="submit" disabled={loading} className="w-full bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest h-12 rounded-xl text-xs">
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                 Save Changes
               </Button>
@@ -128,28 +124,28 @@ export default function ProfilePage() {
         </Card>
 
         {/* Security */}
-        <Card className="border-white/10 bg-card/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+        <Card className="border-white/10 bg-card/50 rounded-2xl sm:rounded-3xl">
+          <CardHeader className="px-5 sm:px-6">
+            <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
               <Lock className="h-5 w-5 text-amber-500" />
               Security
             </CardTitle>
-            <CardDescription>Change your password to keep your account secure.</CardDescription>
+            <CardDescription className="text-xs sm:text-sm">Change your password to keep secure.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="px-5 sm:px-6 pb-6">
             <form onSubmit={handleUpdatePassword} className="space-y-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">New Password</label>
+                <label className="text-xs font-bold text-zinc-500 uppercase tracking-widest">New Password</label>
                 <Input
                   type="password"
                   value={newPassword}
                   onChange={(e) => setNewPassword(e.target.value)}
                   placeholder="Min 6 characters"
-                  className="bg-background/50 border-white/10"
+                  className="h-12 bg-background/50 border-white/10 rounded-xl"
                   minLength={6}
                 />
               </div>
-              <Button type="submit" disabled={loading || !newPassword} variant="outline" className="w-full md:w-auto">
+              <Button type="submit" disabled={loading || !newPassword} variant="outline" className="w-full border-white/10 hover:bg-white/5 h-12 rounded-xl text-xs font-black uppercase tracking-widest text-zinc-400 hover:text-white">
                 Update Password
               </Button>
             </form>
