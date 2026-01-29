@@ -200,7 +200,25 @@ export default function DashboardPage() {
             <h2 className="text-xl font-bold flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-500" /> Live Action
             </h2>
-            <span className="text-xs font-bold bg-red-500/10 text-red-500 px-2 py-1 rounded-full animate-pulse">{activeGames.length} ONLINE</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  const key = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+                  fetch(`/api/cron/daily-game?key=${key}`)
+                    .then(r => r.json())
+                    .then(d => {
+                      if (d.success) {
+                        alert(`Synced! Processed: ${d.processed}`);
+                        window.location.reload();
+                      }
+                    });
+                }}
+                className="text-[10px] font-bold text-zinc-500 hover:text-amber-500 transition-colors border border-white/10 px-2 py-0.5 rounded"
+              >
+                SYNC
+              </button>
+              <span className="text-xs font-bold bg-red-500/10 text-red-500 px-2 py-1 rounded-full animate-pulse">{activeGames.length} ONLINE</span>
+            </div>
           </div>
 
           <div className="space-y-3">
