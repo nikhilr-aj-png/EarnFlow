@@ -198,47 +198,29 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
     if (!user || !id) return;
     const q = query(
       collection(db, "cardGameHistory"),
-      where("gameId", "==", id),
       orderBy("createdAt", "desc"),
-      limit(30)
+      limit(60)
     );
     const unsubHist = onSnapshot(q, (snap) => {
       const allHistory = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
 
-      // Strict Deduplication by normalized round StartTime
+      // Client-side Filter & Deduplication
       const seen = new Set();
-      const segmentedHistory = allHistory.filter(h => {
-        const sTime = typeof h.startTime === 'object' ? h.startTime?.seconds : Number(h.startTime);
-        if (!sTime) return false;
-
-        // Key is GameID + StartTime (The round's unique fingerprint)
-        const roundKey = `${h.gameId}_${sTime}`;
-        if (seen.has(roundKey)) return false;
-        seen.add(roundKey);
-        return true;
-      });
+      const segmentedHistory = allHistory
+        .filter(h => h.gameId === id)
+        .filter(h => {
+          const sTime = typeof h.startTime === 'object' ? h.startTime?.seconds : Number(h.startTime);
+          if (!sTime) return false;
+          const roundKey = `${h.gameId}_${sTime}`;
+          if (seen.has(roundKey)) return false;
+          seen.add(roundKey);
+          return true;
+        })
+        .slice(0, 30);
 
       setPastWinners(segmentedHistory);
     }, (err) => {
-      // If index is missing, handle gracefully
-      if (err.message?.includes("index")) {
-        console.warn("History Index Missing - Falling back to simple query");
-        const qSimple = query(collection(db, "cardGameHistory"), limit(50));
-        onSnapshot(qSimple, (s) => {
-          const data = s.docs.map(d => d.data() as any)
-            .filter(h => h.gameId === id)
-            .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
-
-          const seenStr = new Set();
-          const deduped = data.filter(h => {
-            const sTime = h.startTime?.seconds || Number(h.startTime);
-            if (!sTime || seenStr.has(sTime)) return false;
-            seenStr.add(sTime);
-            return true;
-          }).slice(0, 30);
-          setPastWinners(deduped);
-        });
-      }
+      console.warn("History Error:", err);
     });
     return () => unsubHist();
   }, [user, id]);
@@ -423,7 +405,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
 
           {/* Round Header */}
           <div className="bg-[#1c1d24] border border-[#2c2d3a] p-6 rounded-[2rem] relative overflow-hidden shadow-2xl">
-            <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-red-500 via-amber-500 to-green-500 transition-all duration-1000" style={{ width: `${(timeLeft / game.duration) * 100}%` }} />
+            <div className="absolute top-0 left-0 h-1 bg-gradient-to-r from-red-500 via-amber-500 to-green-500 transition-all duration-1000" style={{ width: `${Math.min(100, (timeLeft / (game.duration || 60)) * 100)}%` }} />
 
             <div className="flex flex-col md:flex-row items-center justify-between gap-6 relative z-10">
               <div className="flex items-center gap-4">
@@ -443,7 +425,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                 <div className="text-center">
                   <p className="text-[10px] text-zinc-500 font-bold uppercase tracking-widest mb-1">Time Left</p>
                   <p className={cn("text-5xl font-black font-mono tracking-tighter leading-none", timeLeft < 5 ? "text-red-500 animate-pulse" : "text-white")}>
-                    {timeLeft}s
+                    {Number(timeLeft).toFixed(1)}s
                   </p>
                 </div>
                 <div className="h-14 w-px bg-zinc-800" />
