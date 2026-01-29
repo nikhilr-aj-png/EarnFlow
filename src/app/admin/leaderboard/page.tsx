@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Trophy, Medal, Star, Loader2, Play, Save, History, Settings2 } from "lucide-react";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
+import { cn } from "@/lib/utils";
 
 export default function LeaderboardAdminPage() {
   const [loading, setLoading] = useState(true);
