@@ -37,7 +37,12 @@ export default function DashboardPage() {
     const gamesQuery = query(collection(db, "cardGames"));
     const unsubGames = onSnapshot(gamesQuery, (snap) => {
       const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      setActiveGames(all.filter(g => g.status === 'active'));
+      // Include 'active' OR 'expired auto-slots'
+      const visible = all.filter(g =>
+        g.status === 'active' ||
+        (g.status === 'expired' && g.winnerSelection === 'auto')
+      );
+      setActiveGames(visible);
     }, (err) => console.error("Games Snapshot Error:", err));
 
     return () => { unsubActivities(); unsubGames(); };

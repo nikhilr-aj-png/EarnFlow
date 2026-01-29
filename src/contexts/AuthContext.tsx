@@ -104,7 +104,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     runCrons();
-    const interval = setInterval(runCrons, 30000); // 30s Pulse (V2)
+    const interval = setInterval(runCrons, 15000); // 15s Pulse (V3)
     return () => clearInterval(interval);
   }, [user]);
 
