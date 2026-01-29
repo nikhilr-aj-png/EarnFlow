@@ -54,45 +54,48 @@ export async function POST(req: Request) {
     const results: any[] = [];
 
     await db.runTransaction(async (t) => {
+      // READS FIRST: Fetch all winner snapshots
+      const userRefs = sortedUserIds.map(id => db.collection("users").doc(id));
+      const userSnaps = await Promise.all(userRefs.map(ref => t.get(ref)));
+
+      // WRITES SECOND: Perform all updates and sets
       for (let i = 0; i < sortedUserIds.length; i++) {
         const userId = sortedUserIds[i];
         const rank = i + 1;
         const rewardAmount = rank === 1 ? settings.rank1Reward : rank === 2 ? settings.rank2Reward : settings.rank3Reward;
+        const userSnap = userSnaps[i];
 
-        if (rewardAmount <= 0) continue;
+        if (rewardAmount <= 0 || !userSnap.exists) continue;
 
-        const userRef = db.collection("users").doc(userId);
-        const userSnap = await t.get(userRef);
+        const currentCoins = userSnap.data()?.coins || 0;
+        const userRef = userRefs[i];
 
-        if (userSnap.exists) {
-          const currentCoins = userSnap.data()?.coins || 0;
-          t.update(userRef, {
-            coins: currentCoins + rewardAmount,
-            updatedAt: now
-          });
+        t.update(userRef, {
+          coins: currentCoins + rewardAmount,
+          updatedAt: now
+        });
 
-          // Create Activity Record
-          const activityId = `leaderboard_prize_${userId}_${now.seconds}`;
-          const activityRef = db.collection("activities").doc(activityId);
-          t.set(activityRef, {
-            userId,
-            type: "leaderboard_prize",
-            amount: rewardAmount,
-            title: `Leaderboard Rank #${rank} Prize`,
-            description: `Congratulations! You placed #${rank} in the Hall of Fame.`,
-            createdAt: now,
-            status: "completed"
-          });
+        // Create Activity Record
+        const activityId = `leaderboard_prize_${userId}_${now.seconds}`;
+        const activityRef = db.collection("activities").doc(activityId);
+        t.set(activityRef, {
+          userId,
+          type: "leaderboard_prize",
+          amount: rewardAmount,
+          title: `Leaderboard Rank #${rank} Prize`,
+          description: `Congratulations! You placed #${rank} in the Hall of Fame.`,
+          createdAt: now,
+          status: "completed"
+        });
 
-          results.push({ userId, rank, rewardAmount });
-        }
+        results.push({ userId, rank, rewardAmount });
       }
 
       // Update last awarded timestamp in settings
-      t.update(db.collection("settings").doc("hallOfFame"), {
+      t.set(db.collection("settings").doc("hallOfFame"), {
         lastAwardedAt: now,
         lastAwardCount: results.length
-      });
+      }, { merge: true });
     });
 
     return NextResponse.json({

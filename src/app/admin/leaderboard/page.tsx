@@ -86,7 +86,7 @@ export default function LeaderboardAdminPage() {
         // Refresh local timestamp
         setSettings(prev => ({ ...prev, lastAwardedAt: { seconds: data.timestamp / 1000 } }));
       } else {
-        throw new Error(data.message || "Award failed");
+        throw new Error(data.error || data.message || "Award failed");
       }
     } catch (error: any) {
       console.error(error);
