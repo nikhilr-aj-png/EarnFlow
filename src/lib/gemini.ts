@@ -10,7 +10,7 @@ if (!apiKey) {
 const genAI = new GoogleGenerativeAI(apiKey || "");
 const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
 
-export async function generateQuizQuestions(topic: string, count: number): Promise<any[]> {
+export async function generateQuizQuestions(topic: string, count: number, excludeTexts: string[] = []): Promise<any[]> {
   // If no API key, go straight to fallback
   if (!apiKey) {
     console.warn("No API Key configured, using Question Bank.");
@@ -18,8 +18,15 @@ export async function generateQuizQuestions(topic: string, count: number): Promi
   }
 
   try {
+    const excludeList = excludeTexts.length > 0
+      ? `\nCRITICAL: Do NOT use or repeat any of these existing questions:\n${excludeTexts.map(t => `- ${t}`).join('\n')}`
+      : "";
+
     const prompt = `
-      Generate ${count} multiple-choice quiz questions about "${topic}".
+      Generate ${count} unique multiple-choice quiz questions about "${topic}".
+      ${excludeList}
+
+      Focus on unique, interesting, and lesser-known facts to keep the quiz fresh.
       Return strictly a JSON array of objects. 
       Each object must have:
       - "text": string (The question)

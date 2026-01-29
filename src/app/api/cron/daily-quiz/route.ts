@@ -68,13 +68,26 @@ export async function GET(req: NextRequest) {
     }
     // -------------------------------
 
+    // 3. Fetch Recent Quiz History to prevent duplication
+    const recentTasksSnap = await db.collection("tasks")
+      .where("type", "==", "quiz")
+      .orderBy("createdAt", "desc")
+      .limit(20)
+      .get();
+
+    const existingQuestionTexts = recentTasksSnap.docs.flatMap(doc => {
+      const qArray = doc.data().questions || [];
+      return qArray.map((q: any) => q.text);
+    });
+
     const tasksCreated = [];
 
-    // 3. Prepare Promises for Parallel Execution
+    // 4. Prepare Promises for Parallel Execution
     const freePromises = Array(freeCount).fill(null).map(async (_, i) => {
       try {
         const topic = topics[Math.floor(Math.random() * topics.length)];
-        const questions = await generateQuizQuestions(topic, 2);
+        // Pass existing texts to avoid repeats
+        const questions = await generateQuizQuestions(topic, 2, existingQuestionTexts);
         const taskData = {
           title: `Daily Quiz: ${topic} (Free)`,
           description: `Complete this quick quiz about ${topic} to earn coins!`,
@@ -99,7 +112,8 @@ export async function GET(req: NextRequest) {
     const premiumPromises = Array(premiumCount).fill(null).map(async (_, i) => {
       try {
         const topic = topics[Math.floor(Math.random() * topics.length)];
-        const questions = await generateQuizQuestions(topic, 5);
+        // Pass existing texts to avoid repeats
+        const questions = await generateQuizQuestions(topic, 5, existingQuestionTexts);
         const taskData = {
           title: `Daily Challenge: ${topic} (Premium)`,
           description: `Verify your knowledge in ${topic} for big rewards!`,
@@ -133,8 +147,6 @@ export async function GET(req: NextRequest) {
       failureCount: failures.length,
       errors: errorMessages
     });
-
-
 
   } catch (error: any) {
     console.error("[Cron] Fatal Error:", error);
