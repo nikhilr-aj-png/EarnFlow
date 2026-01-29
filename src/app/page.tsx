@@ -115,7 +115,7 @@ export default function Home() {
                 <div className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">Tasks Done</div>
               </div>
               <div className="text-center">
-                <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">4.9/5</div>
+                <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">4.3/5</div>
                 <div className="text-[10px] sm:text-xs uppercase tracking-widest text-muted-foreground mt-1 font-semibold">User Rating</div>
               </div>
             </motion.div>
