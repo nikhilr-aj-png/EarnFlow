@@ -47,8 +47,8 @@ export async function POST(req: Request) {
       const { winnerIndex } = await calculateSmartWinner(db, gameId, winningTime);
       resultWinnerIndex = winnerIndex;
 
-      // 3. Record to History (Aviator Strip) - IDEMPOTENT ID
-      const historyId = `hist_${gameId}_${winningTime}`;
+      // 3. Record to History (DETERMINISTIC ID)
+      const historyId = `hist_${gameId}_${startTime}`;
       const historyRef = db.collection("cardGameHistory").doc(historyId);
       t.set(historyRef, {
         gameId: gameId,
@@ -57,15 +57,15 @@ export async function POST(req: Request) {
         price: gameData.price,
         question: gameData.question,
         startTime: gameData.startTime,
-        endTime: Timestamp.now(),
-        createdAt: Timestamp.now()
+        endTime: now,
+        createdAt: now
       });
 
-      // 4. Update Game State to EXPIRED (Don't Delete)
+      // 4. Update Game State to EXPIRED
       t.update(gameRef, {
         winnerIndex: winnerIndex,
         status: 'expired',
-        updatedAt: Timestamp.now()
+        updatedAt: now
       });
     });
 

@@ -41,7 +41,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
   const isCalculating = timeLeft <= 0 && !reveal;
   const isArchived = game?.winnerSelection === 'manual';
 
-  // 0. Sync Server Time (RTT Compensated)
+  // 0. Sync Server Time (RTT Compensated + Jitter Buffer)
   useEffect(() => {
     const syncTime = async () => {
       try {
@@ -51,17 +51,17 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
         const { serverTime } = await res.json();
 
         const rtt = t1 - t0;
-        // Offset = ServerTime - (LocalTimeAtReceive + half_rtt)
-        const offset = serverTime - (t1 / 1000) + (rtt / 2000);
+        // Compensate for half-RTT and add a subtle 100ms jitter buffer for smooth countdowns
+        const offset = serverTime - (t1 / 1000) + (rtt / 2000) + 0.1;
         setServerOffset(offset);
-        console.log(`[SYNC] ServerTime: ${serverTime}, RTT: ${rtt}ms, Offset: ${offset.toFixed(3)}s`);
+        console.log(`[SYNC] ServerTime: ${serverTime}, RTT: ${rtt}ms, Buffer: 100ms, Offset: ${offset.toFixed(3)}s`);
       } catch (err) {
         console.error("Time sync failed:", err);
       }
     };
     syncTime();
-    // Re-sync every 30s to prevent drift
-    const interval = setInterval(syncTime, 30000);
+    // Re-sync every 20s to prevent drift
+    const interval = setInterval(syncTime, 20000);
     return () => clearInterval(interval);
   }, []);
 
@@ -204,19 +204,21 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
     const unsubHist = onSnapshot(q, (snap) => {
       const allHistory = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
 
-      // Client-side Filter & Deduplication
+      // Client-side Filter & Deduplication (Stable Round Fingerprint)
       const seen = new Set();
       const segmentedHistory = allHistory
         .filter(h => h.gameId === id)
         .filter(h => {
           const sTime = typeof h.startTime === 'object' ? h.startTime?.seconds : Number(h.startTime);
           if (!sTime) return false;
+
+          // Deterministic fingerpint: GameID + StartTime
           const roundKey = `${h.gameId}_${sTime}`;
           if (seen.has(roundKey)) return false;
           seen.add(roundKey);
           return true;
         })
-        .slice(0, 30);
+        .slice(0, 25);
 
       setPastWinners(segmentedHistory);
     }, (err) => {
@@ -241,19 +243,26 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
   // Timer & Auto-Finalize Logic
   useEffect(() => {
     if (timeLeft > 0 && game?.startTime?.seconds) {
-      setIsPlaying(true);
-      setReveal(false);
+      if (!isPlaying) setIsPlaying(true);
+      if (reveal) setReveal(false);
+
       const end = game.startTime.seconds + game.duration;
-      const timer = setInterval(() => {
-        const now = Math.floor(Date.now() / 1000) + serverOffset;
-        setTimeLeft(Math.max(0, end - now));
-      }, 1000);
-      return () => clearInterval(timer);
-    } else if (timeLeft <= 0 && isPlaying) {
-      setIsPlaying(false);
-      handleRoundFinish();
+      const intervalId = setInterval(() => {
+        const now = (Date.now() / 1000) + serverOffset;
+        const remaining = Math.max(0, end - now);
+
+        // Update high-precision state
+        setTimeLeft(remaining);
+
+        if (remaining <= 0) {
+          clearInterval(intervalId);
+          setIsPlaying(false);
+          handleRoundFinish();
+        }
+      }, 100); // 10fps for sub-second precision
+      return () => clearInterval(intervalId);
     }
-  }, [timeLeft, isPlaying, game]);
+  }, [game?.startTime?.seconds, game?.duration, serverOffset, isPlaying, reveal, timeLeft]);
 
   const handleRoundFinish = async () => {
     if (!game) return;

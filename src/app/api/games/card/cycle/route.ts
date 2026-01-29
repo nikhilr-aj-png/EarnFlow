@@ -34,34 +34,10 @@ export async function POST(req: Request) {
     let recoveryNeeded = false;
     let isArchived = false;
 
-    // --- GUARANTEED REWARD PROCESSING ---
-    const initialGameSnap = await gameRef.get();
-    if (initialGameSnap.exists) {
-      const gameData = initialGameSnap.data()!;
-      const startTime = gameData.startTime?.seconds || 0;
-
-      let winnerIndex = gameData.winnerIndex;
-
-      // If auto game and winner not yet calculated, calculate it now
-      if (gameData.winnerSelection === 'auto' && (winnerIndex === -1 || winnerIndex === undefined)) {
-        const { winnerIndex: calculatedIdx } = await calculateSmartWinner(db, gameId, startTime);
-        winnerIndex = calculatedIdx;
-        // Update doc with winnerIndex so awardGameRewards can use it (or just pass it)
-        await gameRef.update({ winnerIndex: winnerIndex, status: 'expired' });
-      }
-
-      // Award rewards if they haven't been (this is idempotent)
-      if (winnerIndex !== -1 && winnerIndex !== undefined) {
-        await awardGameRewards(db, gameId, winnerIndex, startTime);
-        console.log(`[CYCLE] Automatically awarded rewards for Game ${gameId}`);
-      }
-    }
-
     try {
       await db.runTransaction(async (t) => {
         const gameSnap = await t.get(gameRef);
 
-        // Critical Check: If game missing, assume race condition and trigger recovery
         if (!gameSnap.exists) {
           throw new Error("GAME_NOT_FOUND");
         }
@@ -80,41 +56,39 @@ export async function POST(req: Request) {
         const isPremium = gameData.isPremium ?? false;
         const price = gameData.price;
 
-        // Fallback for missing label
         if (!expiryLabel) {
           const entry = Object.entries(DURATIONS_MAP).find(([_, v]) => v === duration);
           if (entry) expiryLabel = entry[0];
         }
 
-        // MANUAL GAME CHECK: Based on Winner Selection Mode
-        // Manual Mode -> Archive (History)
-        // Auto Mode -> Cycle (Loop)
-        if (gameData.winnerSelection === 'manual') {
-          t.update(gameRef, { status: 'inactive' });
-          isArchived = true;
-          return;
+        // --- 1. HANDLE ROUND OUTCOME (AUTHORITATIVE) ---
+        let finalWinnerIndex = gameData.winnerIndex;
+
+        // If auto game and no winner set, calculate it NOW inside transaction
+        if (gameData.winnerSelection === 'auto' && (finalWinnerIndex === -1 || finalWinnerIndex === undefined)) {
+          // Note: We can't await complex external logic easily here, but we can do volume checks.
+          // For simplicity and to avoid transaction timeouts, we use the pre-calculated calculation 
+          // or a quick volume-based calculation.
+          const entriesSnap = await t.get(db.collection("cardGameEntries")
+            .where("gameId", "==", gameId)
+            .where("gameStartTime", "==", startTime));
+
+          const volumes = [0, 0];
+          entriesSnap.forEach(e => {
+            const d = e.data();
+            if (d.cardIndex !== undefined) volumes[d.cardIndex] += (d.price || 0);
+          });
+
+          finalWinnerIndex = volumes[0] <= volumes[1] ? 0 : 1;
         }
 
-        // If we can't replicate (missing critical data), just delete
-        if (!expiryLabel || !price) {
-          t.delete(gameRef);
-          return;
-        }
-
-        // Generate New Game Data
-        const theme = getRandomTheme();
-        let questionText = theme.questionTemplates[Math.floor(Math.random() * theme.questionTemplates.length)];
-
-        // NO: Move awardGameRewards OUTSIDE or right here?
-        // Let's do it right here if it's an auto game
-        if (gameData.winnerSelection === 'auto') {
-          // We'll let the Cron handle the heavy lifting or do a quick call here.
-          // 1. Archive Result to History (Aviator Strip) - IDEMPOTENT ID
+        // 2. RECORD TO HISTORY (DETERMINISTIC ID)
+        if (finalWinnerIndex !== -1 && finalWinnerIndex !== undefined) {
           const historyId = `hist_${gameId}_${startTime}`;
           const historyRef = db.collection("cardGameHistory").doc(historyId);
           t.set(historyRef, {
             gameId: gameId,
-            winnerIndex: gameData.winnerIndex,
+            winnerIndex: finalWinnerIndex,
             winnerSelection: gameData.winnerSelection,
             price: gameData.price,
             question: gameData.question,
@@ -122,33 +96,54 @@ export async function POST(req: Request) {
             endTime: now,
             createdAt: now
           });
-
-          // 2. Generate New Round Content (Reuse Theme or New)
-          const theme = getRandomTheme();
-          const questionText = theme.questionTemplates[Math.floor(Math.random() * theme.questionTemplates.length)];
-
-          // 3. Update Existing Document (ID Stays the Same)
-          t.update(gameRef, {
-            question: `${questionText} (${expiryLabel})`,
-            price: price,
-            duration: duration,
-            winnerIndex: -1,
-            winnerSelection: "auto",
-            status: "active",
-            cardImages: (gameData.cardImages && gameData.cardImages.length === 2)
-              ? gameData.cardImages
-              : theme.cards.slice(0, 2), // Absolute 2-card enforcement
-            themeId: theme.id,
-            startTime: now,
-            updatedAt: now,
-            generatedBy: "Instant_Cycle_Reuse",
-            expiryLabel: expiryLabel,
-            isPremium: isPremium
-          });
-
-          newGameId = gameId; // ID remains constant
         }
-      }); // Closes the async (t) => { ... } function and the db.runTransaction call
+
+        // 3. ARCHIVE OR CYCLE
+        if (gameData.winnerSelection === 'manual') {
+          t.update(gameRef, { status: 'inactive', winnerIndex: finalWinnerIndex });
+          isArchived = true;
+          return;
+        }
+
+        if (!expiryLabel || !price) {
+          t.delete(gameRef);
+          return;
+        }
+
+        // Generate New Round
+        const theme = getRandomTheme();
+        const questionText = theme.questionTemplates[Math.floor(Math.random() * theme.questionTemplates.length)];
+
+        t.update(gameRef, {
+          question: `${questionText} (${expiryLabel})`,
+          price: price,
+          duration: duration,
+          winnerIndex: -1,
+          winnerSelection: "auto",
+          status: "active",
+          cardImages: (gameData.cardImages && gameData.cardImages.length === 2)
+            ? gameData.cardImages
+            : theme.cards.slice(0, 2),
+          themeId: theme.id,
+          startTime: now,
+          updatedAt: now,
+          generatedBy: "Atomic_Cycle",
+          expiryLabel: expiryLabel,
+          isPremium: isPremium
+        });
+
+        newGameId = gameId;
+      });
+
+      // 4. AWARD REWARDS (Non-blocking outside transaction)
+      if (newGameId || isArchived) {
+        const gameSnap = await gameRef.get();
+        const gd = gameSnap.data();
+        if (gd?.winnerIndex !== -1 && gd?.winnerIndex !== undefined) {
+          awardGameRewards(db, gameId, gd.winnerIndex, gd.startTime?.seconds || 0)
+            .catch(err => console.error("[CYCLE] Reward Error:", err));
+        }
+      }
 
     } catch (e: any) {
       if (e.message === "GAME_NOT_FOUND") {

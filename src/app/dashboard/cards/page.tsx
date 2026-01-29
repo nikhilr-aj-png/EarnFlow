@@ -190,7 +190,7 @@ function GalleryGameCard({ game, serverOffset }: { game: any; serverOffset: numb
           <div className="flex items-center gap-2 text-xs text-zinc-400 font-medium">
             <Timer className="h-3 w-3" />
             <span>Duration: {formatDuration(game.duration)}</span>
-            {localTime > 0 && <span className="text-red-400 font-mono">({Number(localTime).toFixed(1)}s left)</span>}
+            {Number(localTime) > 0 && <span className="text-red-400 font-mono">({Number(localTime).toFixed(1)}s left)</span>}
           </div>
         </div>
 
