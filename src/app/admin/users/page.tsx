@@ -20,20 +20,21 @@ export default function UserManagementPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
 
-  const fetchUsers = async () => {
-    try {
-      const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
-      const snap = await getDocs(q);
-      setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchUsers();
+    setLoading(true);
+    const q = query(collection(db, "users"), orderBy("createdAt", "desc"));
+
+    // Switch to Real-time listener for presence and status updates
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setUsers(snap.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setLoading(false);
+    }, (err) => {
+      console.error("Users Snapshot Error:", err);
+      toast.error("Failed to load users in real-time.");
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const toggleStatus = async (id: string, currentStatus: string) => {
