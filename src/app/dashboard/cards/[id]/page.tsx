@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use, useRef } from "react";
+import { useState, useEffect, use, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot, collection, query, where, orderBy, limit } from "firebase/firestore";
@@ -64,23 +64,85 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
   }, [user, id]);
 
   // 2. Listen to ALL Bets (Live Community Feed)
+  const BOT_NAMES = [
+    "Aman_88", "Simran_K", "Bittu_V", "Riya_Crypto", "EarnWithSunny",
+    "MasterTrading", "Nisha_Profit", "Karan_Alpha", "Priya_Wealth", "Akash_Earns",
+    "Sona_Royal", "Vicky_Bet", "Lucky_Rahul", "Pooja_Gold", "Sam_Gamer",
+    "Kabir_King", "Zara_Luck", "Anay_Expert", "Ishani_V", "Aryan_Winner",
+    "Mira_Earns", "Dev_Pro", "Roshni_Star", "Advik_Bet", "Sai_G",
+    "Diya_Wealth", "Reyansh_X", "Anvi_Pro", "Vihaan_Earn", "Kavya_W",
+    "Arjun_Alpha", "Shanaya_Bet", "Vivaan_Luck", "Navya_Earns", "Ayaan_V",
+    "Myra_Winner", "Aarav_Expert", "Rahul_Invest", "Sneha_07", "CryptoDada",
+    "ProfitPanda", "BullRun_X", "MegaGamer", "WinnerCircle", "PlayPro",
+    "EarnDaily", "CashKing", "CoinMaster", "BetExpert", "GameChanger"
+  ];
+
+  const bots = useMemo(() => {
+    if (!game || !game.startTime) return [];
+
+    // Seeded randomization for bot count (18-48)
+    const seed = game.startTime.seconds || 0;
+    const botCount = (seed % 31) + 18;
+
+    const shuffledNames = [...BOT_NAMES].sort((a, b) => (seed % 100) - 50);
+    const selectedNames = shuffledNames.slice(0, botCount);
+
+    const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const generateFakeId = (s: number) => {
+      let id = "";
+      for (let i = 0; i < 4; i++) id += chars.charAt((s + i * 7) % chars.length);
+      return id;
+    };
+
+    return selectedNames.map((name, i) => {
+      const botSeed = seed + i;
+      let price = game.price || 10;
+      if (game.betMode === 'quick') {
+        const amounts = [10, 10, 10, 50, 50, 100, 500];
+        price = amounts[botSeed % amounts.length];
+      }
+
+      return {
+        id: `bot_${i}`,
+        isBot: true,
+        userName: name,
+        userId: generateFakeId(botSeed),
+        price: price,
+        cardIndex: botSeed % 2, // 0: King, 1: Queen - already selected
+        arrivalOffset: (botSeed % 25), // Spread over 25s
+        updatedAt: { seconds: game.startTime.seconds + (botSeed % 25) }
+      };
+    });
+  }, [game?.startTime?.seconds, game?.price, game?.betMode]);
+
+  const [realBets, setRealBets] = useState<any[]>([]);
+
   useEffect(() => {
-    if (!user || !game?.startTime?.seconds || !id) return;
-    const q = query(
-      collection(db, "cardGameEntries"),
-      where("gameId", "==", id),
-      where("gameStartTime", "==", game.startTime.seconds),
-      limit(100)
-    );
-    const unsubBets = onSnapshot(q, (snap) => {
-      const sorted = snap.docs
-        .map(doc => doc.data())
-        .sort((a: any, b: any) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0))
-        .slice(0, 50);
-      setAllBets(sorted);
-    }, (err) => console.error("Live Bets Error:", err));
-    return () => unsubBets();
+    if (user && game?.startTime?.seconds && id) {
+      const q = query(
+        collection(db, "cardGameEntries"),
+        where("gameId", "==", id),
+        where("gameStartTime", "==", game.startTime.seconds),
+        limit(100)
+      );
+      const unsubBets = onSnapshot(q, (snap) => {
+        setRealBets(snap.docs.map(doc => doc.data()));
+      }, (err) => console.error("Live Bets Error:", err));
+      return () => unsubBets();
+    }
   }, [user, id, game?.startTime?.seconds]);
+
+  // Combined Bets with Gradual Bot Arrival & Selection
+  useEffect(() => {
+    if (!game) return;
+    const elapsedTime = game.duration - timeLeft;
+
+    const arrivedBots = bots
+      .filter(b => b.arrivalOffset <= elapsedTime);
+
+    const combined = [...realBets, ...arrivedBots].sort((a: any, b: any) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+    setAllBets(combined.slice(0, 100));
+  }, [timeLeft, realBets, bots, game?.duration]);
 
   // 3. Listen to Current User's Specific Selection (Aggregated)
   useEffect(() => {
@@ -494,7 +556,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
               </div>
               <div className="bg-zinc-800 px-4 py-1.5 rounded-full border border-white/5 flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-[10px] text-zinc-300 font-extrabold">{allBets.length} TOTAL BETS</span>
+                <span className="text-[10px] text-zinc-300 font-extrabold">{allBets.length} ACTIVE PARTICIPANTS</span>
               </div>
             </div>
 
@@ -506,8 +568,8 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                 </div>
               ) : (
                 allBets.map((bet) => {
-                  const isWin = reveal && bet.cardIndex === game.winnerIndex;
-                  const isLoss = reveal && bet.cardIndex !== game.winnerIndex;
+                  const isWin = reveal && bet.cardIndex !== undefined && bet.cardIndex === game.winnerIndex;
+                  const isLoss = reveal && bet.cardIndex !== undefined && bet.cardIndex !== game.winnerIndex;
                   const displayPrice = bet.price || game.price;
                   // Unique key for bet (id if available, else generated)
                   const betKey = bet.id || `${bet.userId}_${bet.cardIndex}_${bet.updatedAt?.seconds}`;
@@ -518,7 +580,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                       initial={{ scale: 0.95, opacity: 0 }}
                       animate={{ scale: 1, opacity: 1 }}
                       className={cn(
-                        "flex items-center justify-between p-4 rounded-2xl bg-[#0c0d10] border border-white/5 relative overflow-hidden group transition-all duration-500",
+                        "flex items-center justify-between p-4 rounded-2xl bg-[#0c0d10] border border-amber-500/5 relative overflow-hidden group transition-all duration-500",
                         bet.userId === user?.uid ? "border-amber-500/30 bg-amber-500/5 ring-1 ring-amber-500/20" : "",
                         isWin ? "border-green-500/50 bg-green-500/10 shadow-[0_0_20px_rgba(34,197,94,0.2)]" : "",
                         isLoss ? "border-red-500/20 bg-red-500/5 opacity-60" : ""
@@ -526,29 +588,30 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                     >
                       <div className="flex items-center gap-3">
                         <div className={cn(
-                          "h-10 w-10 rounded-full flex items-center justify-center text-[10px] font-black border uppercase italic transition-colors",
-                          isWin ? "bg-green-500 border-green-400 text-black" : "bg-zinc-800 border-amber-500/20 text-amber-500"
+                          "h-10 w-10 rounded-full flex items-center justify-center text-[10px] font-black border uppercase italic transition-colors shadow-lg",
+                          isWin ? "bg-green-500 border-green-400 text-black" :
+                            "bg-zinc-800 border-amber-500/30 text-amber-500"
                         )}>
-                          {bet.cardIndex === 0 ? "K" : "Q"}
+                          {bet.cardIndex === 0 ? "K" : bet.cardIndex === 1 ? "Q" : "⚡"}
                         </div>
                         <div className="flex flex-col">
                           <span className="text-xs font-black text-white italic">
-                            {bet.userName || "Player"} <span className="text-[9px] text-zinc-600 font-medium not-italic ml-1">ID: {bet.userId?.slice(0, 4)}</span>
+                            {bet.userName || "Player"} <span className="text-[9px] text-zinc-600 font-medium not-italic ml-1">ID: {bet.userId?.slice(-4)}</span>
                           </span>
                           <span className={cn(
                             "text-[10px] font-bold uppercase leading-none",
-                            isWin ? "text-green-500" : isLoss ? "text-red-500" : "text-zinc-500"
+                            isWin ? "text-green-500" : isLoss ? "text-red-500" : "text-amber-500/80"
                           )}>
-                            {isWin ? "Victory Achievement" : isLoss ? "Crashed Card" : `Placed on ${bet.cardIndex === 0 ? "King" : "Queen"}`}
+                            {isWin ? "Victory Achievement" : isLoss ? "Crashed Card" : (bet.cardIndex === undefined ? "DECIDING..." : `Placed on ${bet.cardIndex === 0 ? "King" : "Queen"}`)}
                           </span>
                         </div>
                       </div>
                       <div className="flex flex-col items-end">
                         <span className={cn(
                           "text-[10px] font-black uppercase italic",
-                          isWin ? "text-green-400 animate-pulse" : isLoss ? "text-red-400" : "text-zinc-600"
+                          isWin ? "text-green-400 animate-pulse" : isLoss ? "text-red-400" : "text-amber-500/40"
                         )}>
-                          {isWin ? "WON" : isLoss ? "LOST" : "BET"}
+                          {isWin ? "WON" : isLoss ? "LOST" : (bet.cardIndex === undefined ? "READY" : "BET")}
                         </span>
                         <span className={cn(
                           "text-sm font-black italic",
