@@ -56,19 +56,13 @@ export async function GET(req: any) {
       const winnerSelection = gameData.winnerSelection || 'manual';
       const startTime = gameData.startTime?.seconds || 0;
       const duration = gameData.duration || 0;
-      const isExpired = now.seconds >= startTime + duration;
+      const isExpired = now.seconds >= (startTime + duration - 2); // 2s jitter buffer
 
-      // Logic:
-      // A. If Active & Time is Up -> Process Outcome
-      // B. If Expired & Auto Mode -> Recycle immediately (Recovery)
-      // C. If Inactive & Auto Mode -> Force revive (Slot Recovery)
+      // CRITICAL LOGIC: If it's an auto-slot and it's NOT currently active, IS time-expired, or HAS a winner index (finalized)
+      const needsAction = (winnerSelection === 'auto' && (status !== 'active' || isExpired || (gameData.winnerIndex !== -1 && gameData.winnerIndex !== undefined))) ||
+        (winnerSelection === 'manual' && status === 'active' && isExpired);
 
-      const needsProcessing = (status === 'active' && isExpired);
-      const needsRecycling = (winnerSelection === 'auto' && (status === 'expired' || status === 'inactive' || isExpired));
-
-      console.log(`[CRON] Checking Game ${gameDoc.id}: status=${status}, isExpired=${isExpired}, needsProc=${needsProcessing}, needsRecycle=${needsRecycling}`);
-
-      if (needsProcessing || needsRecycling) {
+      if (needsAction) {
         const gameId = gameDoc.id;
 
         // --- 1. HANDLE OUTCOME (Calculate Result inside Transaction) ---
