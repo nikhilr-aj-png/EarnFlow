@@ -68,17 +68,18 @@ export async function GET(req: NextRequest) {
     }
     // -------------------------------
 
-    // 3. Fetch Recent Quiz History to prevent duplication
+    // 3. Fetch Recent Task History (Memory filter to avoid index)
     const recentTasksSnap = await db.collection("tasks")
-      .where("type", "==", "quiz")
       .orderBy("createdAt", "desc")
-      .limit(20)
+      .limit(50)
       .get();
 
-    const existingQuestionTexts = recentTasksSnap.docs.flatMap(doc => {
-      const qArray = doc.data().questions || [];
-      return qArray.map((q: any) => q.text);
-    });
+    const existingQuestionTexts = recentTasksSnap.docs
+      .filter(doc => doc.data().type === 'quiz')
+      .flatMap(doc => {
+        const qArray = doc.data().questions || [];
+        return qArray.map((q: any) => q.text);
+      });
 
     const tasksCreated = [];
 

@@ -14,10 +14,12 @@ export async function calculateSmartWinner(db: Firestore, gameId: string, startT
     const cardCount = 2; // Strictly locked to 2 cards (KING & QUEEN)
 
     // Precise query: Only consider entries for THIS specific round
-    const entriesQ = await db.collection("cardGameEntries")
+    // Precise query: Memory filter to avoid index
+    const entriesFullQ = await db.collection("cardGameEntries")
       .where("gameId", "==", gameId)
-      .where("gameStartTime", "==", startTime)
       .get();
+
+    const entriesDocs = entriesFullQ.docs.filter(d => d.data().gameStartTime === startTime);
 
     const cardVolumes = new Array(cardCount).fill(0);
     let totalVolume = 0;
@@ -92,14 +94,24 @@ export async function awardGameRewards(
   try {
     console.log(`[REWARDS] Starting for Game: ${gameId}, Winner: ${winnerIndex}, StartTime: ${startTime}`);
 
+    // 1. Fetch ALL entries for this game, filter in memory for round/status
     const entriesQ = await db.collection("cardGameEntries")
       .where("gameId", "==", gameId)
-      .where("gameStartTime", "==", startTime)
-      .where("rewardProcessed", "==", false)
       .get();
 
     if (entriesQ.empty) {
-      console.log(`[REWARDS] No pending entries found for Game: ${gameId}`);
+      console.log(`[REWARDS] No entries found for Game: ${gameId}`);
+      return { processed: 0, winners: 0 };
+    }
+
+    // Filter relevant entries in memory
+    const relevantDocs = entriesQ.docs.filter(doc => {
+      const d = doc.data();
+      return (d.gameStartTime === startTime) && (d.rewardProcessed === false);
+    });
+
+    if (relevantDocs.length === 0) {
+      console.log(`[REWARDS] No pending entries for round ${startTime}`);
       return { processed: 0, winners: 0 };
     }
 
@@ -118,10 +130,10 @@ export async function awardGameRewards(
 
     const rewardAmount = gamePrice * 2;
 
-    console.log(`[REWARDS] Processing ${entriesQ.size} entries. Total Price: ${gamePrice}, Reward: ${rewardAmount}`);
+    console.log(`[REWARDS] Processing ${relevantDocs.length} entries. Total Price: ${gamePrice}, Reward: ${rewardAmount}`);
 
     let winnersCount = 0;
-    const docs = entriesQ.docs;
+    const docs = relevantDocs;
     const CHUNK_SIZE = 100;
 
     for (let i = 0; i < docs.length; i += CHUNK_SIZE) {
