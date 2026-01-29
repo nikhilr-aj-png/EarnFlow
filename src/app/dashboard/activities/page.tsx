@@ -57,7 +57,7 @@ export default function ActivityHistoryPage() {
 
   const filteredActivities = activities.filter(a => {
     if (filter === "all") return true;
-    if (filter === "earnings") return ['game_win', 'task', 'deposit'].includes(a.type);
+    if (filter === "earnings") return ['game_win', 'task', 'deposit', 'referral_commission', 'referral_bonus'].includes(a.type);
     if (filter === "expenses") return ['bet', 'withdrawal'].includes(a.type);
     return a.type === filter;
   });
@@ -144,9 +144,9 @@ export default function ActivityHistoryPage() {
               <div className="flex flex-col items-end">
                 <div className={cn(
                   "text-xl font-black italic",
-                  ['game_win', 'task', 'deposit'].includes(activity.type) ? "text-green-500" : "text-red-500"
+                  ['game_win', 'task', 'deposit', 'referral_commission', 'referral_bonus'].includes(activity.type) ? "text-green-500" : "text-red-500"
                 )}>
-                  {['game_win', 'task', 'deposit'].includes(activity.type) ? "+" : "-"}{activity.amount}
+                  {['game_win', 'task', 'deposit', 'referral_commission', 'referral_bonus'].includes(activity.type) ? "+" : "-"}{activity.amount}
                 </div>
                 <div className="text-[9px] font-black uppercase tracking-widest text-zinc-600">COINS</div>
               </div>
@@ -212,6 +212,12 @@ function ActivityIcon({ type }: { type: string }) {
   } else if (type === 'upgrade') {
     Icon = Gem;
     colorClass = "bg-cyan-500/10 border-cyan-500/20 text-cyan-500";
+  } else if (type === 'referral_bonus') {
+    Icon = Users;
+    colorClass = "bg-indigo-500/10 border-indigo-500/20 text-indigo-500";
+  } else if (type === 'referral_commission') {
+    Icon = Coins;
+    colorClass = "bg-emerald-500/10 border-emerald-500/20 text-emerald-500";
   }
 
   return (
