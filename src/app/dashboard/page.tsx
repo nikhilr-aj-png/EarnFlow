@@ -34,10 +34,10 @@ export default function DashboardPage() {
       setRecentActivities(sorted);
     }, (err) => console.error("Activities Snapshot Error:", err));
 
-    const gamesQuery = query(collection(db, "cardGames"), where("status", "==", "active"));
+    const gamesQuery = query(collection(db, "cardGames"));
     const unsubGames = onSnapshot(gamesQuery, (snap) => {
-      const allActive = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      setActiveGames(allActive);
+      const all = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      setActiveGames(all.filter(g => g.status === 'active'));
     }, (err) => console.error("Games Snapshot Error:", err));
 
     return () => { unsubActivities(); unsubGames(); };
@@ -251,6 +251,7 @@ function StatsCard({ title, value, sub, icon: Icon, color, action }: any) {
 
 function DashboardGameCard({ game }: { game: any }) {
   const [dashTime, setDashTime] = useState(0);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     if (!game.startTime) return;
@@ -259,18 +260,38 @@ function DashboardGameCard({ game }: { game: any }) {
       const now = Math.floor(Date.now() / 1000);
       const remains = Math.max(0, game.duration - (now - start));
       setDashTime(remains);
+
+      if (remains <= 0 && !isTransitioning) {
+        setIsTransitioning(true);
+        // Passive trigger for stuck games
+        const key = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+        fetch(`/api/cron/daily-game?key=${key}`).catch(() => { });
+      } else if (remains <= 0 && isTransitioning) {
+        // KEEP PINGING every 5s if still stuck on 0
+        const nowMs = Date.now();
+        if (nowMs % 5000 < 1000) {
+          const key = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+          fetch(`/api/cron/daily-game?key=${key}`).catch(() => { });
+        }
+      } else if (remains > 0 && isTransitioning) {
+        setIsTransitioning(false);
+      }
     };
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [game.startTime, game.duration]);
+  }, [game.id, game.startTime?.seconds, game.duration, isTransitioning]);
 
   return (
     <Link href={`/dashboard/cards/${game.id}`}>
       <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-zinc-900 to-black border border-white/5 p-4 group transition-all hover:border-amber-500/50">
         <div className="flex justify-between items-center mb-2">
           <span className="text-sm font-bold text-white group-hover:text-amber-500 transition-colors line-clamp-1">{game.question}</span>
-          {dashTime > 0 && <span className="text-[10px] font-mono text-red-500 animate-pulse flex items-center gap-1"><Timer className="h-3 w-3" /> {dashTime}s</span>}
+          {dashTime > 0 ? (
+            <span className="text-[10px] font-mono text-red-500 animate-pulse flex items-center gap-1"><Timer className="h-3 w-3" /> {dashTime}s</span>
+          ) : (
+            <span className="text-[10px] font-bold text-amber-500 animate-pulse">TRANSITIONING...</span>
+          )}
         </div>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">

@@ -47,6 +47,7 @@ export async function GET(req: any) {
       .where("status", "in", ["active", "expired", "inactive"])
       .get();
 
+    const tasksProcessed: any[] = [];
     let processedCount = 0;
 
     for (const gameDoc of gamesSnap.docs) {
@@ -65,23 +66,20 @@ export async function GET(req: any) {
       const needsProcessing = (status === 'active' && isExpired);
       const needsRecycling = (winnerSelection === 'auto' && (status === 'expired' || status === 'inactive' || isExpired));
 
+      console.log(`[CRON] Checking Game ${gameDoc.id}: status=${status}, isExpired=${isExpired}, needsProc=${needsProcessing}, needsRecycle=${needsRecycling}`);
+
       if (needsProcessing || needsRecycling) {
         const gameId = gameDoc.id;
 
-        // --- 1. HANDLE OUTCOME (Calculate & Save Result) ---
+        // --- 1. HANDLE OUTCOME (Calculate Result inside Transaction) ---
         let winnerIndex = gameData.winnerIndex;
         if (winnerIndex === -1 || winnerIndex === undefined) {
           const { winnerIndex: calculatedIdx } = await calculateSmartWinner(db, gameId, startTime);
           winnerIndex = calculatedIdx;
         }
 
-        // Award Rewards (Idempotent)
-        await awardGameRewards(db, gameId, winnerIndex, startTime, gameData.price, gameData.question)
-          .catch(console.error);
-
-        // --- 2. TRANSITION ---
+        // --- 2. ATOMIC TRANSITION (Recycle FIRST) ---
         if (winnerSelection === 'auto') {
-          // RECYCLE INDEFINITELY
           const theme = getRandomTheme();
           const expiryLabel = gameData.expiryLabel || "1h";
           const price = gameData.price || 10;
@@ -114,7 +112,7 @@ export async function GET(req: any) {
               themeId: theme.id,
               startTime: now,
               updatedAt: now,
-              generatedBy: "Cron_Stable_Recycle",
+              generatedBy: "Cron_Stable_Recycle_V2", // Prioritize recycling
               expiryLabel: expiryLabel,
               isPremium: isPremium
             });
@@ -124,11 +122,26 @@ export async function GET(req: any) {
           await gameDoc.ref.update({ status: 'inactive', winnerIndex, updatedAt: now });
         }
 
+        // Save for post-cycle awarding
+        tasksProcessed.push({
+          gameId,
+          winnerIndex,
+          startTime,
+          price: gameData.price,
+          question: gameData.question
+        });
         processedCount++;
       }
     }
 
-    return NextResponse.json({ success: true, processed: processedCount });
+    // --- 3. POST-CYCLE AWARDING (Non-blocking) ---
+    // We award rewards AFTER the next rounds have already been created/started
+    for (const task of tasksProcessed) {
+      awardGameRewards(db, task.gameId, task.winnerIndex, task.startTime, task.price, task.question)
+        .catch(err => console.error(`[POST-AWARD] Error for ${task.gameId}:`, err));
+    }
+
+    return NextResponse.json({ success: true, processed: processedCount, awarded: tasksProcessed.length });
 
   } catch (error: any) {
     console.error("Cron Daily Game Error:", error);
