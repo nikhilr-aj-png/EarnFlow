@@ -205,13 +205,16 @@ export default function DashboardPage() {
                 onClick={() => {
                   const key = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
                   fetch(`/api/cron/daily-game?key=${key}`)
-                    .then(r => r.json())
-                    .then(d => {
-                      if (d.success) {
+                    .then(async r => {
+                      const d = await r.json();
+                      if (r.ok) {
                         alert(`Synced! Processed: ${d.processed}`);
                         window.location.reload();
+                      } else {
+                        alert(`Sync Failed [${r.status}]: ${d.error || 'Unknown Error'}`);
                       }
-                    });
+                    })
+                    .catch(e => alert("Network Error: " + e.message));
                 }}
                 className="text-[10px] font-bold text-zinc-500 hover:text-amber-500 transition-colors border border-white/10 px-2 py-0.5 rounded"
               >

@@ -1,10 +1,10 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
 
-export async function GET(req: any) {
+export async function GET(req: NextRequest) {
   // 1. Security Check
   const authHeader = req.headers.get('authorization');
-  const queryKey = new URL(req.url).searchParams.get('key');
+  const queryKey = req.nextUrl.searchParams.get('key');
 
   if (
     process.env.NODE_ENV === 'production' &&
