@@ -69,7 +69,7 @@ export async function POST(req: Request) {
         const gameData = gameSnap.data()!;
         const startTime = gameData.startTime?.seconds || 0;
         const duration = gameData.duration || 0;
-        const isTimeExpired = now.seconds >= startTime + duration - 5;
+        const isTimeExpired = now.seconds >= (startTime + duration);
         const isStatusExpired = gameData.status === 'expired';
 
         if (!isTimeExpired && !isStatusExpired) {

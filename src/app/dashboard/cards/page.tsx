@@ -17,16 +17,21 @@ export default function GamesGalleryPage() {
   const [serverOffset, setServerOffset] = useState(0);
 
   useEffect(() => {
-    // 0. Sync Server Time
+    // 0. Sync Server Time (RTT Compensated)
     const syncTime = async () => {
       try {
+        const t0 = Date.now();
         const res = await fetch("/api/time");
+        const t1 = Date.now();
         const { serverTime } = await res.json();
-        const offset = serverTime - Math.floor(Date.now() / 1000);
+        const rtt = t1 - t0;
+        const offset = serverTime - (t1 / 1000) + (rtt / 2000);
         setServerOffset(offset);
+        console.log(`[GALLERY SYNC] RTT: ${rtt}ms, Offset: ${offset.toFixed(3)}s`);
       } catch (err) { }
     };
     syncTime();
+    const syncInterval = setInterval(syncTime, 30000);
 
     // Query ALL games (Active + Inactive Manual History)
     const q = query(collection(db, "cardGames"));
@@ -46,7 +51,10 @@ export default function GamesGalleryPage() {
       setLoading(false);
     }, (err) => console.error("Games Gallery Error:", err));
 
-    return () => unsub();
+    return () => {
+      unsub();
+      clearInterval(syncInterval);
+    };
   }, []);
 
   const displayedGames = activeGames.filter(g => {

@@ -26,7 +26,16 @@ export async function POST(req: Request) {
 
       const gameData = gameSnap.data()!;
 
-      // 1. Idempotent check
+      // 1. Authoritative Time Check
+      const now = Timestamp.now();
+      const startTime = gameStartTime || gameData.startTime?.seconds;
+      const duration = gameData.duration || 60; // Default fallback
+
+      if (now.seconds < (startTime + duration)) {
+        throw new Error("ROUND_NOT_ENDED_YET");
+      }
+
+      // 2. Idempotent check
       if (gameData.winnerIndex !== undefined && gameData.winnerIndex !== -1) {
         resultWinnerIndex = gameData.winnerIndex;
         alreadySet = true;

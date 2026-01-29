@@ -41,19 +41,28 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
   const isCalculating = timeLeft <= 0 && !reveal;
   const isArchived = game?.winnerSelection === 'manual';
 
-  // 0. Sync Server Time
+  // 0. Sync Server Time (RTT Compensated)
   useEffect(() => {
     const syncTime = async () => {
       try {
+        const t0 = Date.now();
         const res = await fetch("/api/time");
+        const t1 = Date.now();
         const { serverTime } = await res.json();
-        const offset = serverTime - Math.floor(Date.now() / 1000);
+
+        const rtt = t1 - t0;
+        // Offset = ServerTime - (LocalTimeAtReceive + half_rtt)
+        const offset = serverTime - (t1 / 1000) + (rtt / 2000);
         setServerOffset(offset);
+        console.log(`[SYNC] ServerTime: ${serverTime}, RTT: ${rtt}ms, Offset: ${offset.toFixed(3)}s`);
       } catch (err) {
         console.error("Time sync failed:", err);
       }
     };
     syncTime();
+    // Re-sync every 30s to prevent drift
+    const interval = setInterval(syncTime, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   // 1. Listen to Game Document
@@ -189,27 +198,48 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
     if (!user || !id) return;
     const q = query(
       collection(db, "cardGameHistory"),
+      where("gameId", "==", id),
       orderBy("createdAt", "desc"),
-      limit(100)
+      limit(30)
     );
     const unsubHist = onSnapshot(q, (snap) => {
       const allHistory = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
 
-      // Filter by current game ID AND deduplicate by round StartTime
+      // Strict Deduplication by normalized round StartTime
       const seen = new Set();
       const segmentedHistory = allHistory.filter(h => {
-        if (h.gameId !== id) return false;
-        // Create a unique key for the round (Normalize startTime to number)
         const sTime = typeof h.startTime === 'object' ? h.startTime?.seconds : Number(h.startTime);
-        const roundKey = `${h.gameId}_${sTime}`;
+        if (!sTime) return false;
 
-        if (!sTime || seen.has(roundKey)) return false;
+        // Key is GameID + StartTime (The round's unique fingerprint)
+        const roundKey = `${h.gameId}_${sTime}`;
+        if (seen.has(roundKey)) return false;
         seen.add(roundKey);
         return true;
-      }).slice(0, 30);
+      });
 
       setPastWinners(segmentedHistory);
-    }, (err) => console.error("History Error:", err));
+    }, (err) => {
+      // If index is missing, handle gracefully
+      if (err.message?.includes("index")) {
+        console.warn("History Index Missing - Falling back to simple query");
+        const qSimple = query(collection(db, "cardGameHistory"), limit(50));
+        onSnapshot(qSimple, (s) => {
+          const data = s.docs.map(d => d.data() as any)
+            .filter(h => h.gameId === id)
+            .sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+
+          const seenStr = new Set();
+          const deduped = data.filter(h => {
+            const sTime = h.startTime?.seconds || Number(h.startTime);
+            if (!sTime || seenStr.has(sTime)) return false;
+            seenStr.add(sTime);
+            return true;
+          }).slice(0, 30);
+          setPastWinners(deduped);
+        });
+      }
+    });
     return () => unsubHist();
   }, [user, id]);
 
@@ -245,16 +275,30 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
 
   const handleRoundFinish = async () => {
     if (!game) return;
+
+    // Defensive: Wait a split second to ensure snapshots catch up
+    await new Promise(r => setTimeout(r, 500));
+
     if (game.winnerIndex === -1 || game.winnerIndex === undefined) {
+      console.log("[FINALIZE] Client triggering finalization...");
       const winnerIdx = await finalizeGame();
-      if (winnerIdx !== -1) setGame((prev: any) => ({ ...prev, winnerIndex: winnerIdx }));
+      if (winnerIdx !== -1) {
+        setGame((prev: any) => ({ ...prev, winnerIndex: winnerIdx }));
+        setReveal(true);
+      } else {
+        // If finalization failed (e.g. ROUND_NOT_ENDED), wait and rely on snapshot
+        console.warn("[FINALIZE] Server rejected or failed. Waiting for authoritative update...");
+        // Optionally show a "Waiting for server..." state
+      }
+    } else {
+      setReveal(true);
     }
-    setReveal(true);
+
     if (selectedCards.length > 0 && !rewardProcessed) await processResult();
     if (!isArchived) setTimeout(() => cycleGame(), 5000);
   };
 
-  const finalizeGame = async () => {
+  const finalizeGame = async (retryCount = 0): Promise<number> => {
     try {
       const res = await fetch("/api/games/card/finalize", {
         method: "POST",
@@ -262,8 +306,20 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
         body: JSON.stringify({ gameId: id, gameStartTime: game?.startTime?.seconds })
       });
       const data = await res.json();
-      return res.ok ? data.winnerIndex : -1;
-    } catch { return -1; }
+
+      if (!res.ok) {
+        if (data.error === "ROUND_NOT_ENDED_YET" && retryCount < 3) {
+          console.log(`[FINALIZE] Round not ended according to server. Retrying in 1s... (${retryCount + 1}/3)`);
+          await new Promise(r => setTimeout(r, 1000));
+          return finalizeGame(retryCount + 1);
+        }
+        return -1;
+      }
+      return data.winnerIndex;
+    } catch (err) {
+      console.error("[FINALIZE] Error:", err);
+      return -1;
+    }
   };
 
   const cycleGame = async () => {
