@@ -36,8 +36,10 @@ export async function createUser(uid: string, data: { name: string; email: strin
 
     // 2. Reward the referrer if exists
     if (data.referredBy) {
+      console.log(`[REFERRAL] Processing join bonus for referrer code: ${data.referredBy}`);
       const q = query(collection(db, "users"), where("referralCode", "==", data.referredBy));
       const snap = await getDocs(q);
+
       if (!snap.empty) {
         const referrerDoc = snap.docs[0];
         const referrerData = referrerDoc.data();
@@ -46,21 +48,29 @@ export async function createUser(uid: string, data: { name: string; email: strin
         // Tiered Reward: 1000 for Premium, 500 for Free
         const bonusAmount = isPremium ? 1000 : 500;
 
-        await updateDoc(doc(db, "users", referrerDoc.id), {
+        await updateDoc(referrerDoc.ref, {
           coins: increment(bonusAmount),
-          totalEarned: increment(bonusAmount)
+          totalEarned: increment(bonusAmount),
+          updatedAt: serverTimestamp()
         });
 
-        // Record Activity for Referrer (Client-side usage is fine here as it's a helper)
+        // Record Activity for Referrer
         const activityRef = doc(collection(db, "activities"));
         await setDoc(activityRef, {
           userId: referrerDoc.id,
           type: 'referral_bonus',
           amount: bonusAmount,
           title: "Referral Bonus 🎁",
-          metadata: { joinedUser: data.name },
+          metadata: {
+            joinedUser: data.name,
+            joinedUid: uid,
+            type: 'registration'
+          },
           createdAt: serverTimestamp()
         });
+        console.log(`[REFERRAL] Success: Awarded ${bonusAmount} to ${referrerDoc.id}`);
+      } else {
+        console.warn(`[REFERRAL] Referrer not found for code: ${data.referredBy}`);
       }
     }
   } catch (error) {

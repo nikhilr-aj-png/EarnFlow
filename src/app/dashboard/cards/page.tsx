@@ -14,24 +14,31 @@ export default function GamesGalleryPage() {
   const [activeGames, setActiveGames] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'premium' | 'standard'>('all');
+  const [serverOffset, setServerOffset] = useState(0);
 
   useEffect(() => {
+    // 0. Sync Server Time
+    const syncTime = async () => {
+      try {
+        const res = await fetch("/api/time");
+        const { serverTime } = await res.json();
+        const offset = serverTime - Math.floor(Date.now() / 1000);
+        setServerOffset(offset);
+      } catch (err) { }
+    };
+    syncTime();
+
     // Query ALL games (Active + Inactive Manual History)
-    // Auto-games delete themselves, so this list won't explode with auto-trash.
     const q = query(collection(db, "cardGames"));
     const unsub = onSnapshot(q, (snap) => {
       const allActive = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
-      // Show only active games in the gallery. 
-      // 'expired' games stay in DB for reveal but hide from gallery.
       const filtered = allActive.filter(g => g.status === 'active');
 
-      // Stable Sort: Duration Asc -> Price Asc -> Creation Desc
       filtered.sort((a, b) => {
         const durDiff = (a.duration || 0) - (b.duration || 0);
         if (durDiff !== 0) return durDiff;
         const priceDiff = (a.price || 0) - (b.price || 0);
         if (priceDiff !== 0) return priceDiff;
-        // If duration and price are equal, sort by createdAt descending
         return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
       });
 
@@ -101,7 +108,7 @@ export default function GamesGalleryPage() {
         ) : (
           displayedGames.map((game) => (
             <div key={game.id}>
-              <GalleryGameCard game={game} />
+              <GalleryGameCard game={game} serverOffset={serverOffset} />
             </div>
           ))
         )}
@@ -110,7 +117,7 @@ export default function GamesGalleryPage() {
   );
 }
 
-function GalleryGameCard({ game }: { game: any }) {
+function GalleryGameCard({ game, serverOffset }: { game: any; serverOffset: number }) {
   const [localTime, setLocalTime] = useState(0);
   const [hasTriggeredCycle, setTriggeredCycle] = useState(false);
 
@@ -118,7 +125,7 @@ function GalleryGameCard({ game }: { game: any }) {
     if (!game.startTime) return;
     const updateTimer = () => {
       const start = game.startTime.seconds;
-      const now = Math.floor(Date.now() / 1000);
+      const now = Math.floor(Date.now() / 1000) + serverOffset;
       const remains = Math.max(0, game.duration - (now - start));
       setLocalTime(remains);
 
@@ -134,7 +141,7 @@ function GalleryGameCard({ game }: { game: any }) {
     updateTimer();
     const interval = setInterval(updateTimer, 1000);
     return () => clearInterval(interval);
-  }, [game.startTime, game.duration, game.status, game.id, hasTriggeredCycle]);
+  }, [game.startTime, game.duration, game.status, game.id, hasTriggeredCycle, serverOffset]);
 
   return (
     <div className="group relative bg-black/40 backdrop-blur-xl border border-white/5 rounded-2xl overflow-hidden transition-all duration-500 hover:border-amber-500/50 hover:shadow-[0_0_30px_-10px_rgba(245,158,11,0.3)] hover:-translate-y-2">

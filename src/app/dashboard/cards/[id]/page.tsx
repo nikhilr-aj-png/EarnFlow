@@ -29,6 +29,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
   const [isPlaying, setIsPlaying] = useState(false);
   const [rewardProcessed, setRewardProcessed] = useState(false);
   const [isProcessingSelection, setIsProcessingSelection] = useState(false);
+  const [serverOffset, setServerOffset] = useState(0);
 
   // Aviator Logic States
   const [allBets, setAllBets] = useState<any[]>([]);
@@ -40,6 +41,21 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
   const isCalculating = timeLeft <= 0 && !reveal;
   const isArchived = game?.winnerSelection === 'manual';
 
+  // 0. Sync Server Time
+  useEffect(() => {
+    const syncTime = async () => {
+      try {
+        const res = await fetch("/api/time");
+        const { serverTime } = await res.json();
+        const offset = serverTime - Math.floor(Date.now() / 1000);
+        setServerOffset(offset);
+      } catch (err) {
+        console.error("Time sync failed:", err);
+      }
+    };
+    syncTime();
+  }, []);
+
   // 1. Listen to Game Document
   useEffect(() => {
     if (!user || !id) return;
@@ -48,7 +64,8 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
         const data = doc.data();
         setGame(data);
         if (data.startTime?.seconds) {
-          const elapsed = Math.floor(Date.now() / 1000) - data.startTime.seconds;
+          const now = Math.floor(Date.now() / 1000) + serverOffset;
+          const elapsed = now - data.startTime.seconds;
           setTimeLeft(Math.max(0, data.duration - elapsed));
         }
         // Sync default bet amount
@@ -61,7 +78,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
       setLoading(false);
     }, (err) => console.error("Session Game Error:", err));
     return () => unsubGame();
-  }, [user, id]);
+  }, [user, id, serverOffset]);
 
   // 2. Listen to ALL Bets (Live Community Feed)
   const BOT_NAMES = [
@@ -215,7 +232,10 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
       setIsPlaying(true);
       setReveal(false);
       const end = game.startTime.seconds + game.duration;
-      const timer = setInterval(() => setTimeLeft(Math.max(0, end - Math.floor(Date.now() / 1000))), 1000);
+      const timer = setInterval(() => {
+        const now = Math.floor(Date.now() / 1000) + serverOffset;
+        setTimeLeft(Math.max(0, end - now));
+      }, 1000);
       return () => clearInterval(timer);
     } else if (timeLeft <= 0 && isPlaying) {
       setIsPlaying(false);

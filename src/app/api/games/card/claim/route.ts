@@ -97,6 +97,13 @@ export async function POST(req: Request) {
       });
 
       console.log(`[CLAIM] Success for User ${userId}, Won: ${calculatedReward}`);
+
+      // 4. Award Referral Commission (Post-transaction, non-blocking for user)
+      import("@/lib/referralUtils").then(mod => {
+        mod.awardReferralCommission(db, userId, calculatedReward, `Card Game Win (${gameData.question || 'Arena'})`)
+          .catch(err => console.error("Game Commission Error:", err));
+      });
+
       return { success: true, won: true, reward: calculatedReward };
     });
 
