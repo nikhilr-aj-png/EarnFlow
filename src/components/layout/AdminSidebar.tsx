@@ -13,7 +13,8 @@ import {
   MessageSquare,
   Zap,
   Database,
-  Megaphone
+  Megaphone,
+  Trophy
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
@@ -28,6 +29,7 @@ const adminSidebarItems = [
   { name: "Automation (AI)", href: "/admin/automation", icon: Zap },
   { name: "Database Cleanup", href: "/admin/cleanup", icon: Database },
   { name: "Users", href: "/admin/users", icon: Users },
+  { name: "Hall of Fame", href: "/admin/leaderboard", icon: Trophy },
   { name: "Support", href: "/admin/support", icon: MessageSquare },
 ];
 
