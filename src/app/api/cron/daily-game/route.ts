@@ -30,9 +30,9 @@ export async function GET() {
       await batch.commit().catch(console.error);
     }
 
-    // 1. Fetch all games that need processing (Active OR Expired)
+    // 1. Fetch all games that need processing (Active, Expired, or accidentally Inactive auto-slots)
     const gamesSnap = await db.collection("cardGames")
-      .where("status", "in", ["active", "expired"])
+      .where("status", "in", ["active", "expired", "inactive"])
       .get();
 
     let processedCount = 0;
@@ -48,8 +48,12 @@ export async function GET() {
       // Logic:
       // A. If Active & Time is Up -> Process Outcome
       // B. If Expired & Auto Mode -> Recycle immediately (Recovery)
+      // C. If Inactive & Auto Mode -> Force revive (Slot Recovery)
 
-      if ((status === 'active' && isExpired) || (status === 'expired' && winnerSelection === 'auto')) {
+      const needsProcessing = (status === 'active' && isExpired);
+      const needsRecycling = (winnerSelection === 'auto' && (status === 'expired' || status === 'inactive' || isExpired));
+
+      if (needsProcessing || needsRecycling) {
         const gameId = gameDoc.id;
 
         // --- 1. HANDLE OUTCOME (Calculate & Save Result) ---
