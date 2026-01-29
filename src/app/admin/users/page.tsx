@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { db } from "@/lib/firebase";
-import { collection, getDocs, query, doc, updateDoc, orderBy, deleteDoc, deleteField } from "firebase/firestore";
+import { collection, getDocs, query, doc, updateDoc, orderBy, deleteDoc, deleteField, onSnapshot } from "firebase/firestore";
 import { Loader2, Search, ShieldAlert, ShieldCheck, Trash2, AlertTriangle, Clock } from "lucide-react";
 import { toast } from "sonner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
