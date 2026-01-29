@@ -12,17 +12,15 @@ declare global {
 }
 
 export function MonetagScript() {
-  const { userData } = useAuth();
+  const { userData, loading } = useAuth();
   const [scripts] = useState({
-    vignette: `<script>(function(s){s.dataset.zone='10533581',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
     popunder: `<script>(function(s){s.dataset.zone='10533918',s.src='https://al5sm.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
-    inPagePush: `<script>(function(s){s.dataset.zone='10533944',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`
+    vignette: `<script>(function(s){s.dataset.zone='10533581',s.src='https://gizokraijaw.net/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>`,
   });
 
-  // 💎 PREMIUM BYPASS: If user is premium, dont load any ads
-  if (userData?.isPremium) return null;
-
   useEffect(() => {
+    if (loading || userData?.isPremium) return;
+
     // Helper to execute scripts from HTML
     const executeScripts = (html: string, id: string) => {
       if (!html || document.getElementById(`script-executed-${id}`)) return;
@@ -52,13 +50,11 @@ export function MonetagScript() {
 
     if (scripts.vignette) executeScripts(scripts.vignette, 'vignette');
     if (scripts.popunder) executeScripts(scripts.popunder, 'popunder');
-    if (scripts.inPagePush) executeScripts(scripts.inPagePush, 'inpagepush');
 
     // Initial check: if no scripts after 3s, assume blocked or empty
     const timer = setTimeout(() => {
       if (!document.getElementById('script-executed-vignette') &&
-        !document.getElementById('script-executed-popunder') &&
-        !document.getElementById('script-executed-inpagepush')) {
+        !document.getElementById('script-executed-popunder')) {
         window.__isMonetagBlocked = true;
       }
     }, 3000);
@@ -68,14 +64,16 @@ export function MonetagScript() {
       console.log("Refreshing Monetag Ads...");
       if (scripts.vignette) executeScripts(scripts.vignette, 'vignette');
       if (scripts.popunder) executeScripts(scripts.popunder, 'popunder');
-      if (scripts.inPagePush) executeScripts(scripts.inPagePush, 'inpagepush');
     };
 
     return () => {
       clearTimeout(timer);
       delete window.refreshMonetagAds;
     };
-  }, [scripts]);
+  }, [scripts, loading, userData]);
+
+  // 💎 PREMIUM BYPASS: If auth is loading or user is premium, dont render any ad containers
+  if (loading || userData?.isPremium) return null;
 
   return (
     <>
@@ -84,9 +82,6 @@ export function MonetagScript() {
       }} />
       <div id="monetag-popunder-container" dangerouslySetInnerHTML={{
         __html: scripts.popunder.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
-      }} />
-      <div id="monetag-inpagepush-container" dangerouslySetInnerHTML={{
-        __html: scripts.inPagePush.replace(/<script\b[^>]*>([\s\S]*?)<\/script>/gim, "")
       }} />
     </>
   );

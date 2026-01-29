@@ -33,11 +33,10 @@ export default function RootLayout({
       <body
         className={`${outfit.variable} ${inter.variable} antialiased font-sans bg-background text-foreground`}
       >
-        {/* --- MONETAG ADS (Banner & Interstitial) --- */}
-        <MonetagScript />
-
-
-        <Providers>{children}</Providers>
+        <Providers>
+          <MonetagScript />
+          {children}
+        </Providers>
       </body>
     </html>
   );
