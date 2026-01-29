@@ -318,7 +318,7 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
           </div>
 
           {/* Cards Grid */}
-          <div className="flex justify-center gap-6 md:gap-16 px-2">
+          <div className="flex flex-row justify-center items-center gap-4 sm:gap-8 md:gap-16 px-1">
             {game.cardImages.slice(0, 2).map((img: string, idx: number) => {
               const isWinner = reveal && idx === game.winnerIndex;
               const isSelected = selectedCards.includes(idx);
@@ -328,11 +328,11 @@ export default function CardGameSessionPage({ params }: { params: Promise<{ id: 
                 <motion.div
                   key={idx}
                   whileHover={!reveal && isPlaying ? { y: -8, scale: 1.02 } : {}}
-                  className="relative group cursor-pointer w-32 md:w-56"
+                  className="relative group cursor-pointer w-[45%] max-w-[280px]"
                   onClick={() => selectCard(idx)}
                 >
                   <div className={cn(
-                    "aspect-[3/4.2] rounded-2xl bg-[#14151a] border-2 border-transparent relative overflow-hidden transition-all duration-500 shadow-xl flex items-center justify-center",
+                    "aspect-[3/4.2] rounded-xl sm:rounded-2xl bg-[#14151a] border-2 border-transparent relative overflow-hidden transition-all duration-500 shadow-xl flex items-center justify-center",
                     isSelected ? "border-amber-500 bg-amber-500/5 shadow-[0_0_25px_rgba(245,158,11,0.2)]" : "hover:border-zinc-700",
                     isWinner ? "border-green-500 bg-green-500/5 shadow-[0_0_50px_rgba(34,197,94,0.4)] z-20 scale-105" : "",
                     isDimmed ? "opacity-20 grayscale scale-95" : ""

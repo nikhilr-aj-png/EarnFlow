@@ -197,17 +197,17 @@ export default function TasksPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div className="space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Earn Coins</h1>
-          <p className="text-muted-foreground">Complete tasks from our partners to fill your wallet.</p>
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+        <div className="space-y-1 text-center sm:text-left">
+          <h1 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter">Earn Coins</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Complete tasks from our partners to fill your wallet.</p>
         </div>
 
-        <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 w-fit">
+        <div className="flex p-1 bg-white/5 rounded-xl border border-white/5 w-full sm:w-fit">
           <button
             onClick={() => setShowCompleted(false)}
             className={cn(
-              "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
+              "flex-1 sm:flex-none px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-lg transition-all",
               !showCompleted ? "bg-amber-500 text-black shadow-lg" : "text-muted-foreground hover:text-white"
             )}
           >
@@ -216,7 +216,7 @@ export default function TasksPage() {
           <button
             onClick={() => setShowCompleted(true)}
             className={cn(
-              "px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all",
+              "flex-1 sm:flex-none px-4 py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider rounded-lg transition-all",
               showCompleted ? "bg-amber-500 text-black shadow-lg" : "text-muted-foreground hover:text-white"
             )}
           >

@@ -73,50 +73,50 @@ export default function DashboardPage() {
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-8 max-w-7xl mx-auto">
 
       {/* Hero Header */}
-      <motion.div variants={item} className="flex flex-col md:flex-row md:items-end justify-between gap-6 pb-6 border-b border-white/5">
-        <div className="space-y-2">
-          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
+      <motion.div variants={item} className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-6 border-b border-white/5">
+        <div className="space-y-2 text-center sm:text-left">
+          <h1 className="text-4xl md:text-6xl font-black tracking-tight text-white italic uppercase">
             Dashboard
           </h1>
-          <p className="text-zinc-400 text-lg">
-            Welcome back, <span className="text-amber-500 font-bold">{userData?.name || "Earner"}</span>. Ready to win?
+          <p className="text-zinc-400 text-base md:text-lg">
+            Welcome, <span className="text-amber-500 font-bold">{userData?.name || "Earner"}</span>. Ready to win?
           </p>
         </div>
-        <Link href="/wallet">
-          <Button className="bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest px-8 py-6 rounded-xl shadow-[0_0_20px_-5px_rgba(245,158,11,0.5)] transition-all hover:scale-105 active:scale-95">
+        <Link href="/wallet" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest px-8 py-6 rounded-xl shadow-[0_0_20px_-5px_rgba(245,158,11,0.5)] transition-all hover:scale-105 active:scale-95">
             Withdraw Funds <ArrowUpRight className="ml-2 h-5 w-5" />
           </Button>
         </Link>
       </motion.div>
 
       {/* Stats Grid */}
-      <motion.div variants={item} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <motion.div variants={item} className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
         <StatsCard
-          title="Total Coins"
+          title="Coins"
           value={coins.toLocaleString()}
-          sub="Current Balance"
+          sub="Balance"
           icon={Coins}
           color="text-amber-500"
           action={() => setIsDepositOpen(true)}
         />
         <StatsCard
-          title="Task Earnings"
-          value={`₹${((userData?.taskEarnings || 0) / 100).toFixed(2)}`}
-          sub="From Activities"
+          title="Tasks"
+          value={`₹${((userData?.taskEarnings || 0) / 100).toFixed(0)}`}
+          sub="Earned"
           icon={TrendingUp}
           color="text-blue-500"
         />
         <StatsCard
-          title="Game Wins"
-          value={`₹${((userData?.gameEarnings || 0) / 100).toFixed(2)}`}
-          sub="From Card Arena"
+          title="Wins"
+          value={`₹${((userData?.gameEarnings || 0) / 100).toFixed(0)}`}
+          sub="Games"
           icon={Trophy}
           color="text-amber-500"
         />
         <StatsCard
-          title="Wallet Balance"
-          value={`₹${balance.toFixed(2)}`}
-          sub="Min. withdraw ₹100"
+          title="Wallet"
+          value={`₹${balance.toFixed(0)}`}
+          sub="Cash"
           icon={IndianRupee}
           color="text-green-500"
         />

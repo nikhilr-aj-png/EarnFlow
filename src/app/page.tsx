@@ -54,14 +54,14 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.2 }}
-              className="text-4xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl px-2"
+              className="text-4xl font-extrabold tracking-tight sm:text-6xl md:text-7xl lg:text-8xl px-2 leading-[1.1]"
             >
               Maximize Your <br />
-              <span className="relative">
+              <span className="relative inline-block mt-2">
                 <span className="bg-gradient-to-r from-amber-400 via-yellow-500 to-amber-600 bg-clip-text text-transparent">
                   Digital Worth
                 </span>
-                <svg className="absolute -bottom-1 sm:-bottom-2 left-0 w-full h-2 sm:h-3 text-amber-500/30" viewBox="0 0 100 10" preserveAspectRatio="none">
+                <svg className="absolute -bottom-2 left-0 w-full h-2 sm:h-3 text-amber-500/30" viewBox="0 0 100 10" preserveAspectRatio="none">
                   <path d="M0 5 Q 25 0 50 5 T 100 5" fill="none" stroke="currentColor" strokeWidth="4" />
                 </svg>
               </span>
@@ -71,7 +71,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.4 }}
-              className="mt-6 sm:mt-8 text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto leading-relaxed px-4"
+              className="mt-6 sm:mt-10 text-lg sm:text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto leading-relaxed px-4"
             >
               EarnFlow is the premier platform where your small actions lead to massive rewards.
               Complete verified tasks and withdraw real cash instantly.
@@ -81,7 +81,7 @@ export default function Home() {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 0.6 }}
-              className="mt-10 sm:mt-12 flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 px-6"
+              className="mt-10 sm:mt-14 flex flex-col sm:flex-row justify-center gap-4 sm:gap-6 px-6"
             >
               <Link href={user ? "/dashboard" : "/register"}>
                 <Button size="lg" variant="premium" className="w-full sm:w-auto h-14 px-10 text-lg shadow-2xl shadow-amber-500/20 group">
@@ -100,7 +100,7 @@ export default function Home() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 1, delay: 1 }}
-              className="mt-16 sm:mt-24 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 py-6 sm:py-8 border-y border-white/5 bg-white/[0.02] backdrop-blur-sm rounded-2xl mx-2 sm:mx-0"
+              className="mt-16 sm:mt-32 grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8 py-8 sm:py-12 border-y border-white/5 bg-white/[0.02] backdrop-blur-sm rounded-2xl mx-2 sm:mx-0"
             >
               <div className="text-center">
                 <div className="text-2xl sm:text-3xl font-bold bg-gradient-to-b from-white to-white/60 bg-clip-text text-transparent">10K+</div>
