@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getFirebaseAdmin } from "@/lib/firebase-admin";
 import { Timestamp } from "firebase-admin/firestore";
 import { calculateSmartWinner, awardGameRewards } from "@/lib/cardGameUtils";
@@ -6,55 +6,63 @@ import { getRandomTheme } from "@/lib/gameThemes";
 
 export const dynamic = "force-dynamic";
 
-export async function GET(req: NextRequest) {
-  // 1. Security Check
-  const authHeader = req.headers.get('authorization');
-  const queryKey = req.nextUrl.searchParams.get('key');
-
-  console.log("[CRON-GAME] Init. Security Check...");
-
-  if (
-    process.env.NODE_ENV === 'production' &&
-    authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
-    queryKey !== process.env.NEXT_PUBLIC_FIREBASE_API_KEY
-  ) {
-    console.warn("[CRON-GAME] Unauthorized access attempt.");
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
+export async function GET(req: Request) {
+  console.log("[CRON-GAME] Request received at:", new Date().toISOString());
 
   try {
-    console.log("[CRON-GAME] Initializing Firebase Admin...");
+    // 1. Robust URL Parsing
+    const host = req.headers.get('host') || 'localhost:3000';
+    const protocol = req.headers.get('x-forwarded-proto') || 'http';
+    const fullUrl = new URL(req.url, `${protocol}://${host}`);
+    const queryKey = fullUrl.searchParams.get('key');
+    const authHeader = req.headers.get('authorization');
+
+    console.log("[CRON-GAME] Security Check...");
+    if (
+      process.env.NODE_ENV === 'production' &&
+      authHeader !== `Bearer ${process.env.CRON_SECRET}` &&
+      queryKey !== process.env.NEXT_PUBLIC_FIREBASE_API_KEY
+    ) {
+      console.warn("[CRON-GAME] Unauthorized attempt.");
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    console.log("[CRON-GAME] Connecting to Firestore...");
     const admin = getFirebaseAdmin();
     const db = admin.firestore();
     const now = Timestamp.now();
 
-    // 0. Cleanup
-    console.log("[CRON-GAME] Running cleanup for old manual games...");
-    const thirtyMinsAgo = new Timestamp(now.seconds - 1800, now.nanoseconds);
+    // 0. Cleanup (Optimized: Memory filter to avoid index)
+    console.log("[CRON-GAME] Cleaning up old manual games...");
+    const thirtyMinsAgo = (now.seconds - 1800);
     const oldGamesSnap = await db.collection("cardGames")
       .where("status", "==", "expired")
-      .where("updatedAt", "<", thirtyMinsAgo)
-      .where("winnerSelection", "==", "manual")
-      .limit(10)
+      .limit(20)
       .get();
 
     for (const oldDoc of oldGamesSnap.docs) {
       try {
-        const batch = db.batch();
-        const oldEntries = await db.collection("cardGameEntries").where("gameId", "==", oldDoc.id).get();
-        oldEntries.forEach(ed => batch.delete(ed.ref));
-        batch.delete(oldDoc.ref);
-        await batch.commit();
-      } catch (e) { console.error(`[CRON-GAME] Cleanup failed for ${oldDoc.id}`, e); }
+        const d = oldDoc.data();
+        const updatedAt = d.updatedAt?.seconds || 0;
+        const winnerSelection = d.winnerSelection || 'manual';
+
+        if (updatedAt < thirtyMinsAgo && winnerSelection === 'manual') {
+          const batch = db.batch();
+          const oldEntries = await db.collection("cardGameEntries").where("gameId", "==", oldDoc.id).get();
+          oldEntries.forEach(ed => batch.delete(ed.ref));
+          batch.delete(oldDoc.ref);
+          await batch.commit();
+        }
+      } catch (cleanErr) { console.error(`[CRON-GAME] Cleanup error for ${oldDoc.id}`, cleanErr); }
     }
 
-    // 1. Fetch
-    console.log("[CRON-GAME] Fetching games to process...");
+    // 1. Fetch Candidates
+    console.log("[CRON-GAME] Fetching games...");
     const gamesSnap = await db.collection("cardGames")
       .where("status", "in", ["active", "expired", "inactive"])
       .get();
 
-    console.log(`[CRON-GAME] Found ${gamesSnap.size} candidates.`);
+    console.log(`[CRON-GAME] Found ${gamesSnap.size} games to check.`);
 
     const tasksProcessed: any[] = [];
     let processedCount = 0;
@@ -72,7 +80,7 @@ export async function GET(req: NextRequest) {
           (winnerSelection === 'manual' && status === 'active' && isExpired);
 
         if (needsAction) {
-          console.log(`[CRON-GAME] Processing Game ${gameDoc.id} (${winnerSelection})`);
+          console.log(`[CRON-GAME] Processing ${gameDoc.id} (${winnerSelection})...`);
           const gameId = gameDoc.id;
 
           let winnerIndex = gameData.winnerIndex;
@@ -92,8 +100,8 @@ export async function GET(req: NextRequest) {
               const historyRef = db.collection("cardGameHistory").doc(historyId);
               t.set(historyRef, {
                 gameId, winnerIndex, winnerSelection,
-                price: gameData.price, question: gameData.question,
-                startTime: gameData.startTime, endTime: now, createdAt: now
+                price: gameData.price || 10, question: gameData.question || "Card Game",
+                startTime: gameData.startTime || now, endTime: now, createdAt: now
               });
 
               t.update(gameDoc.ref, {
@@ -101,7 +109,7 @@ export async function GET(req: NextRequest) {
                 price, duration, winnerIndex: -1, winnerSelection: "auto",
                 status: "active", cardImages: theme.cards.slice(0, 2),
                 themeId: theme.id, startTime: now, updatedAt: now,
-                generatedBy: "Cron_Stable_Recycle_V3",
+                generatedBy: "Cron_Stable_Recycle_V4",
                 expiryLabel, isPremium
               });
             });
@@ -113,24 +121,26 @@ export async function GET(req: NextRequest) {
           processedCount++;
         }
       } catch (gameErr: any) {
-        console.error(`[CRON-GAME] Error processing game ${gameDoc.id}:`, gameErr.message);
+        console.error(`[CRON-GAME] Error on game ${gameDoc.id}:`, gameErr.message);
       }
     }
 
-    console.log("[CRON-GAME] Processing payouts...");
+    // 3. Payouts
+    console.log(`[CRON-GAME] Awarding ${tasksProcessed.length} winners...`);
     for (const task of tasksProcessed) {
       awardGameRewards(db, task.gameId, task.winnerIndex, task.startTime, task.price, task.question)
-        .catch(err => console.error(`[POST-AWARD] Error for ${task.gameId}:`, err));
+        .catch(err => console.error(`[CRON-AWARD] Error for ${task.gameId}:`, err));
     }
 
-    console.log("[CRON-GAME] Finished successfully.");
+    console.log("[CRON-GAME] Completed successfully.");
     return NextResponse.json({ success: true, processed: processedCount, awarded: tasksProcessed.length });
 
   } catch (error: any) {
-    console.error("[CRON-GAME] FATAL ERROR:", error);
+    console.error("[CRON-GAME] UNHANDLED ERROR:", error);
     return NextResponse.json({
       error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      stack: error.stack,
+      step: "catch_block"
     }, { status: 500 });
   }
 }

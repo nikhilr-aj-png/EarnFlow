@@ -24,7 +24,7 @@ export async function calculateSmartWinner(db: Firestore, gameId: string, startT
     const cardVolumes = new Array(cardCount).fill(0);
     let totalVolume = 0;
 
-    entriesQ.docs.forEach(e => {
+    entriesDocs.forEach((e: any) => {
       const data = e.data();
       const price = Number(data.price || 0);
 
