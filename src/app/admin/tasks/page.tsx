@@ -15,6 +15,7 @@ export default function TasksManagementPage() {
   const [loading, setLoading] = useState(false);
   const [tasks, setTasks] = useState<any[]>([]);
   const [editingTask, setEditingTask] = useState<any>(null);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
 
   // Form states
   const [title, setTitle] = useState("");
@@ -144,11 +145,48 @@ export default function TasksManagementPage() {
     }
   };
 
+  const handleDeleteAllTasks = async () => {
+    const confirm1 = confirm("⚠️ ATTENTION: Are you sure you want to DELETE ALL TASKS? This action cannot be undone.");
+    if (!confirm1) return;
+
+    const confirm2 = confirm("FINAL WARNING: This will permanently remove every single task from the database. Proceed?");
+    if (!confirm2) return;
+
+    setIsDeletingAll(true);
+    const toastId = toast.loading("Deleting all tasks...");
+
+    try {
+      const response = await fetch("/api/admin/tasks/delete-all", {
+        method: "POST"
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) throw new Error(result.error || "Failed to delete tasks");
+
+      toast.success(`SUCCESS: ${result.count} tasks deleted.`, { id: toastId });
+      fetchTasks();
+    } catch (error: any) {
+      console.error(error);
+      toast.error(`Error: ${error.message}`, { id: toastId });
+    } finally {
+      setIsDeletingAll(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold tracking-tight">Manage Tasks</h1>
         <div className="flex gap-2">
+          <Button
+            variant="destructive"
+            onClick={handleDeleteAllTasks}
+            disabled={isDeletingAll || tasks.length === 0}
+            className="font-bold border-red-500/20"
+          >
+            {isDeletingAll ? "Deleting..." : "Delete All Tasks 🗑️"}
+          </Button>
           <Button variant="outline" onClick={() => window.location.href = '/admin/automation'}>
             Auto-Quiz Settings 🤖
           </Button>

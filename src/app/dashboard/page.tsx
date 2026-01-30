@@ -289,16 +289,6 @@ function DashboardGameCard({ game }: { game: any }) {
 
       if (remains <= 0 && !isTransitioning) {
         setIsTransitioning(true);
-        // Passive trigger for stuck games
-        const key = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-        fetch(`/api/cron/daily-game?key=${key}`).catch(() => { });
-      } else if (remains <= 0 && isTransitioning) {
-        // KEEP PINGING every 5s if still stuck on 0
-        const nowMs = Date.now();
-        if (nowMs % 5000 < 1000) {
-          const key = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-          fetch(`/api/cron/daily-game?key=${key}`).catch(() => { });
-        }
       } else if (remains > 0 && isTransitioning) {
         setIsTransitioning(false);
       }
